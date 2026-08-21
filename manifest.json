@@ -1,0 +1,80 @@
+{
+  "manifest_version": 3,
+  "name": "Aether X",
+  "version": "1.0.0",
+  "description": "중급 셀러를 위한 초경량 실시간 분석 & 원클릭 소싱 인텔리전스",
+  "permissions": [
+    "storage",
+    "clipboardWrite"
+  ],
+  "host_permissions": [
+    "https://*.pstatic.net/*",
+    "https://*.coupangcdn.com/*",
+    "https://*.1688.com/*",
+    "https://*.aliexpress.com/*"
+  ],
+  "action": {
+    "default_title": "Aether X",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://search.shopping.naver.com/*",
+        "https://www.coupang.com/np/search*"
+      ],
+      "css": [
+        "styles/overlay.css"
+      ],
+      "js": [
+        "subagents/naverParser.js",
+        "subagents/coupangParser.js",
+        "subagents/calculator.js",
+        "subagents/uiRenderer.js",
+        "content.js"
+      ],
+      "run_at": "document_end"
+    },
+    {
+      "matches": [
+        "https://s.1688.com/*"
+      ],
+      "js": [
+        "1688content.js"
+      ],
+      "run_at": "document_end"
+    },
+    {
+      "matches": [
+        "https://s.1688.com/*"
+      ],
+      "js": [
+        "1688main.js"
+      ],
+      "world": "MAIN",
+      "run_at": "document_end"
+    },
+    {
+      "matches": [
+        "https://*.aliexpress.com/*"
+      ],
+      "js": [
+        "aliexpresscontent.js"
+      ],
+      "run_at": "document_end"
+    },
+    {
+      "matches": [
+        "https://*.aliexpress.com/*"
+      ],
+      "js": [
+        "aliexpressmain.js"
+      ],
+      "world": "MAIN",
+      "run_at": "document_end"
+    }
+  ]
+}

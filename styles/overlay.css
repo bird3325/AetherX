@@ -1,0 +1,357 @@
+/* Aether X CSS Style Sheet - Fully scoped with aetherx- prefix */
+
+/* Typography & Reset */
+.aetherx-font,
+.aetherx-clean-overlay,
+.aetherx-compare-dock,
+.aetherx-filter-bar,
+.aetherx-tooltip {
+  font-family: 'Pretendard', -apple-system, sans-serif !important;
+  box-sizing: border-box !important;
+  color: #0F172A;
+}
+
+/* 1. SERP Clean Overlay (검색 결과 인라인 바) */
+.aetherx-clean-overlay {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  background-color: #F8FAFC !important;
+  border: 1px solid #E2E8F0 !important;
+  border-radius: 6px !important;
+  padding: 6px 10px !important;
+  margin-top: 6px !important;
+  margin-bottom: 6px !important;
+  font-size: 11px !important;
+  line-height: 15px !important;
+  width: 100% !important;
+}
+
+.aetherx-metric-item {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  position: relative !important;
+}
+
+.aetherx-metric-val {
+  font-weight: 700 !important;
+  font-size: 12px !important;
+}
+
+.aetherx-badge {
+  padding: 2px 5px !important;
+  border-radius: 4px !important;
+  font-size: 10px !important;
+  font-weight: 500 !important;
+  color: #FFFFFF !important;
+}
+
+.aetherx-badge-naver {
+  background-color: #03C75A !important;
+}
+
+.aetherx-badge-coupang {
+  background-color: #E11D48 !important;
+}
+
+.aetherx-badge-high {
+  background-color: #059669 !important;
+}
+
+.aetherx-badge-warn {
+  background-color: #D97706 !important;
+}
+
+.aetherx-badge-danger {
+  background-color: #DC2626 !important;
+}
+
+.aetherx-btn-search,
+.aetherx-btn-ali,
+.aetherx-btn-add {
+  background-color: #2563EB !important;
+  color: #FFFFFF !important;
+  border: none !important;
+  border-radius: 4px !important;
+  padding: 3px 6px !important;
+  cursor: pointer !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  transition: background-color 0.2s !important;
+}
+
+.aetherx-btn-search:hover {
+  background-color: #1D4ED8 !important;
+}
+
+.aetherx-btn-ali {
+  background-color: #FF4747 !important;
+}
+
+.aetherx-btn-ali:hover {
+  background-color: #E03535 !important;
+}
+
+.aetherx-btn-add {
+  background-color: #0F172A !important;
+}
+
+.aetherx-btn-add:hover {
+  background-color: #1E293B !important;
+}
+
+/* 2. 스마트 퀵 필터 바 (SERP 상단 플로팅 툴바) */
+.aetherx-filter-bar {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  background-color: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  border-radius: 8px !important;
+  padding: 10px 16px !important;
+  margin-bottom: 12px !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
+  position: sticky !important;
+  top: 10px !important;
+  z-index: 9999 !important;
+}
+
+.aetherx-filter-title {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: #2563EB !important;
+}
+
+.aetherx-filter-inputs {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex-wrap: wrap !important;
+  margin-left: auto !important;
+}
+
+.aetherx-filter-group {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  font-size: 11px !important;
+}
+
+.aetherx-filter-group input,
+.aetherx-filter-group select {
+  padding: 4px 6px !important;
+  border: 1px solid #CBD5E1 !important;
+  border-radius: 4px !important;
+  font-size: 11px !important;
+}
+
+.aetherx-btn-filter-apply {
+  background-color: #2563EB !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 4px !important;
+  padding: 4px 10px !important;
+  font-size: 11px !important;
+  cursor: pointer !important;
+  font-weight: 600 !important;
+}
+
+/* 스마트 필터 활성/비활성 스타일 */
+.aetherx-dimmed {
+  opacity: 0.3 !important;
+  transition: opacity 0.3s ease !important;
+}
+
+.aetherx-highlighted {
+  border: 2px solid #2563EB !important;
+  border-radius: 8px !important;
+  box-shadow: 0 0 10px rgba(37, 99, 235, 0.3) !important;
+  transition: all 0.3s ease !important;
+}
+
+/* 3. Quick Compare 미니 도킹 패널 (우측 하단 고정) */
+.aetherx-compare-dock {
+  position: fixed !important;
+  right: 16px !important;
+  bottom: 16px !important;
+  z-index: 999999 !important;
+  background-color: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+  transition: width 0.3s ease, height 0.3s ease !important;
+  overflow: hidden !important;
+}
+
+.aetherx-compare-dock.aetherx-collapsed {
+  width: 140px !important;
+  height: 38px !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background-color: #0F172A !important;
+  color: #FFFFFF !important;
+}
+
+.aetherx-compare-dock.aetherx-collapsed span {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: #FFFFFF !important;
+}
+
+.aetherx-compare-dock.aetherx-expanded {
+  width: 460px !important;
+  height: 520px !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.aetherx-dock-header {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  background-color: #0F172A !important;
+  color: #FFFFFF !important;
+  padding: 10px 14px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+}
+
+.aetherx-dock-title {
+  color: #FFFFFF !important;
+}
+
+.aetherx-dock-close {
+  cursor: pointer !important;
+  color: #94A3B8 !important;
+  font-size: 14px !important;
+  background: none !important;
+  border: none !important;
+}
+
+.aetherx-dock-close:hover {
+  color: #FFFFFF !important;
+}
+
+.aetherx-dock-body {
+  flex: 1 !important;
+  overflow-y: auto !important;
+  padding: 12px !important;
+}
+
+.aetherx-dock-footer {
+  border-top: 1px solid #E2E8F0 !important;
+  padding: 10px 12px !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  background-color: #F8FAFC !important;
+}
+
+/* 비교 매트릭스 테이블 */
+.aetherx-compare-table {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  font-size: 11px !important;
+}
+
+.aetherx-compare-table th, 
+.aetherx-compare-table td {
+  border: 1px solid #E2E8F0 !important;
+  padding: 6px 8px !important;
+  text-align: center !important;
+}
+
+.aetherx-compare-table th {
+  background-color: #F1F5F9 !important;
+  font-weight: 600 !important;
+}
+
+.aetherx-compare-product-img {
+  width: 40px !important;
+  height: 40px !important;
+  object-fit: cover !important;
+  border-radius: 4px !important;
+}
+
+.aetherx-compare-title-cell {
+  max-width: 100px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-transform: none !important;
+  text-overflow: ellipsis !important;
+}
+
+/* 4. 공통 툴팁 및 팝오버 */
+.aetherx-tooltip-container {
+  position: relative !important;
+  cursor: help !important;
+}
+
+.aetherx-tooltip {
+  visibility: hidden !important;
+  width: 220px !important;
+  background-color: #0F172A !important;
+  color: #FFFFFF !important;
+  text-align: left !important;
+  border-radius: 6px !important;
+  padding: 8px 10px !important;
+  position: absolute !important;
+  z-index: 1000000 !important;
+  bottom: 125% !important;
+  left: 50% !important;
+  margin-left: -110px !important;
+  opacity: 0 !important;
+  transition: opacity 0.3s !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3) !important;
+  font-size: 10px !important;
+  line-height: 14px !important;
+}
+
+.aetherx-tooltip-container:hover .aetherx-tooltip {
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+.aetherx-tooltip::after {
+  content: "" !important;
+  position: absolute !important;
+  top: 100% !important;
+  left: 50% !important;
+  margin-left: -5px !important;
+  border-width: 5px !important;
+  border-style: solid !important;
+  border-color: #0F172A transparent transparent transparent !important;
+}
+
+/* 타사 익스텐션(AliPrice/ap-ext 등)의 빈 박스 노이즈 차단 및 숨김 */
+.ap-ext,
+.ap-ext-1688,
+.ap-product-extra-panel-wrapper,
+.ap-product-extra-panel {
+  display: none !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Aether X 비활성화(OFF) 상태 스타일 제어 */
+body.aetherx-disabled .aetherx-clean-overlay,
+body.aetherx-disabled .aetherx-compare-dock,
+body.aetherx-disabled .aetherx-filter-bar,
+body.aetherx-disabled .aetherx-filter-navigation,
+body.aetherx-disabled .aetherx-highlight-nav-wrapper {
+  display: none !important;
+}
+
+body.aetherx-disabled .aetherx-highlighted {
+  box-shadow: none !important;
+  border: none !important;
+  outline: none !important;
+  background-color: transparent !important;
+}
