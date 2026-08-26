@@ -5,14 +5,25 @@ window.CoupangParser = {
     const selectors = [
       'li.search-product',
       'li[class*="search-product"]',
-      'div[class*="baby-product"]'
+      'div[class*="baby-product"]',
+      'li[data-product-id]',
+      'ul#productList > li',
+      'a.search-product-link',
+      'a[href*="/vp/products/"]'
     ];
     
     let elements = [];
     selectors.forEach(selector => {
       const found = document.querySelectorAll(selector);
       if (found.length > 0) {
-        elements = elements.concat(Array.from(found));
+        found.forEach(item => {
+          if (item.tagName === 'A') {
+            const card = item.closest('li') || item.closest('div[class*="product"]') || item.closest('div[class*="baby-product"]') || item.parentElement;
+            if (card) elements.push(card);
+          } else {
+            elements.push(item);
+          }
+        });
       }
     });
     
@@ -50,8 +61,15 @@ window.CoupangParser = {
       }
 
       // 3. 상품명
-      const nameEl = el.querySelector('div.name') || el.querySelector('.title') || el.querySelector('div[class*="name"]');
-      const title = nameEl ? nameEl.textContent.trim() : "상품명 없음";
+      const nameEl = el.querySelector('div.name') || el.querySelector('.name') || el.querySelector('div[class*="name"]') || el.querySelector('.title');
+      let title = nameEl ? nameEl.textContent.trim() : "";
+      if (!title) {
+        const img = el.querySelector('img');
+        if (img && img.alt) {
+          title = img.alt.trim();
+        }
+      }
+      title = title || "상품명 없음";
 
       // 4. 이미지 URL (데코레이션 배지 및 프로모션 노이즈 필터링 탑재)
       const imgs = Array.from(el.querySelectorAll('img'));

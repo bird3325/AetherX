@@ -13,18 +13,31 @@
 
 /* 1. SERP Clean Overlay (검색 결과 인라인 바) */
 .aetherx-clean-overlay {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: space-between !important;
   background-color: #F8FAFC !important;
   border: 1px solid #E2E8F0 !important;
   border-radius: 6px !important;
+  font-size: 11px !important;
+  line-height: 15px !important;
+}
+
+.aetherx-naver-overlay {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
   padding: 6px 10px !important;
   margin-top: 6px !important;
   margin-bottom: 6px !important;
-  font-size: 11px !important;
-  line-height: 15px !important;
   width: 100% !important;
+}
+
+.aetherx-coupang-overlay {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  padding: 8px 10px !important;
+  margin: 6px 8px !important;
+  width: calc(100% - 16px) !important;
+  box-sizing: border-box !important;
 }
 
 .aetherx-metric-item {
@@ -39,7 +52,7 @@
   font-size: 12px !important;
 }
 
-.aetherx-badge {
+.aetherx-item-pill-status {
   padding: 2px 5px !important;
   border-radius: 4px !important;
   font-size: 10px !important;
@@ -47,23 +60,23 @@
   color: #FFFFFF !important;
 }
 
-.aetherx-badge-naver {
+.aetherx-item-pill-status-naver {
   background-color: #03C75A !important;
 }
 
-.aetherx-badge-coupang {
+.aetherx-item-pill-status-coupang {
   background-color: #E11D48 !important;
 }
 
-.aetherx-badge-high {
+.aetherx-item-pill-status-high {
   background-color: #059669 !important;
 }
 
-.aetherx-badge-warn {
+.aetherx-item-pill-status-warn {
   background-color: #D97706 !important;
 }
 
-.aetherx-badge-danger {
+.aetherx-item-pill-status-danger {
   background-color: #DC2626 !important;
 }
 
@@ -114,7 +127,7 @@
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05) !important;
   position: sticky !important;
   top: 10px !important;
-  z-index: 9999 !important;
+  z-index: 99999999 !important;
 }
 
 .aetherx-filter-title {
@@ -164,8 +177,8 @@
 }
 
 .aetherx-highlighted {
-  border: 2px solid #2563EB !important;
-  border-radius: 8px !important;
+  outline: 2px solid #2563EB !important;
+  outline-offset: -2px !important;
   box-shadow: 0 0 10px rgba(37, 99, 235, 0.3) !important;
   transition: all 0.3s ease !important;
 }
@@ -308,6 +321,7 @@
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3) !important;
   font-size: 10px !important;
   line-height: 14px !important;
+  white-space: normal !important;
 }
 
 .aetherx-tooltip-container:hover .aetherx-tooltip {
@@ -354,4 +368,118 @@ body.aetherx-disabled .aetherx-highlighted {
   border: none !important;
   outline: none !important;
   background-color: transparent !important;
+}
+
+/* Coupang sticky/fixed position override to float nicely below Coupang's sticky header on scroll */
+body.aetherx-coupang .aetherx-filter-bar {
+  position: relative !important;
+  margin-bottom: 12px !important;
+  top: auto !important;
+  z-index: 99999999 !important;
+}
+
+body.aetherx-coupang.aetherx-scrolled .aetherx-filter-bar {
+  position: fixed !important;
+  top: 60px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: calc(100% - 100px) !important;
+  max-width: 1020px !important;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15) !important;
+  margin-bottom: 0 !important;
+}
+
+/* Coupang specific clean overlay style overrides */
+body.aetherx-coupang .aetherx-clean-overlay {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  padding: 8px 10px !important;
+  margin: 6px 8px !important;
+  width: calc(100% - 16px) !important;
+  box-sizing: border-box !important;
+}
+
+/* Force Coupang product cards and links to show full content without clipping during dynamic re-renders */
+body.aetherx-coupang :has(> .aetherx-clean-overlay) {
+  height: auto !important;
+  overflow: visible !important;
+}
+
+body.aetherx-coupang :has(> .aetherx-clean-overlay) a.search-product-link,
+body.aetherx-coupang :has(> .aetherx-clean-overlay) a[href*="/vp/products/"] {
+  height: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: visible !important;
+}
+
+/* Ensure list wrapper containers allow overflowing tooltips (visible overflow) and enable sticky positioning */
+body.aetherx-coupang ul#productList,
+body.aetherx-coupang #searchProductList,
+body.aetherx-coupang .search-product-list,
+body.aetherx-coupang #container,
+body.aetherx-coupang section#contents,
+body.aetherx-coupang .search-content {
+  overflow: visible !important;
+}
+
+body.aetherx-naver ul[class*="list_basis__"],
+body.aetherx-naver [class*="search_list__"] {
+  overflow: visible !important;
+}
+
+/* Platform-independent column-specific tooltip alignment to prevent outer border clipping */
+.aetherx-overlay-row > div:nth-child(1) .aetherx-tooltip {
+  left: 0 !important;
+  margin-left: 0 !important;
+}
+.aetherx-overlay-row > div:nth-child(1) .aetherx-tooltip::after {
+  left: 20px !important;
+  margin-left: 0 !important;
+}
+
+.aetherx-overlay-row > div:nth-child(2) .aetherx-tooltip {
+  left: 50% !important;
+  margin-left: -110px !important;
+}
+.aetherx-overlay-row > div:nth-child(2) .aetherx-tooltip::after {
+  left: 50% !important;
+  margin-left: -5px !important;
+}
+
+.aetherx-overlay-row > div:nth-child(3) .aetherx-tooltip {
+  left: auto !important;
+  right: 0 !important;
+  margin-left: 0 !important;
+}
+.aetherx-overlay-row > div:nth-child(3) .aetherx-tooltip::after {
+  left: auto !important;
+  right: 20px !important;
+  margin-left: 0 !important;
+}
+
+/* AliExpress specific clean overlay style overrides */
+.aetherx-aliexpress-overlay {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  padding: 8px 10px !important;
+  margin: 6px 8px !important;
+  width: calc(100% - 16px) !important;
+  box-sizing: border-box !important;
+}
+
+:has(> .aetherx-aliexpress-overlay) {
+  height: auto !important;
+  overflow: visible !important;
+  position: relative !important;
+  z-index: 99 !important;
+}
+
+:has(> .aetherx-aliexpress-overlay) a {
+  height: auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: visible !important;
 }

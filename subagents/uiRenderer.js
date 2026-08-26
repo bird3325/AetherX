@@ -10,7 +10,9 @@ window.UiRenderer = {
     const defaultMargin = window.Calculator.estimateDefaultMargin(product.price, product.platform);
 
     const overlayDiv = document.createElement('div');
-    overlayDiv.className = 'aetherx-clean-overlay';
+    overlayDiv.className = product.platform === 'coupang' 
+      ? 'aetherx-clean-overlay aetherx-coupang-overlay' 
+      : 'aetherx-clean-overlay aetherx-naver-overlay';
     
     // 마진 색상 판단 (배경 대신 텍스트 컬러 스타일링 적용)
     let marginColor = '#059669'; // High (Green)
@@ -22,11 +24,11 @@ window.UiRenderer = {
 
     // 네이버 등급 혹은 쿠팡 로켓뱃지 정보
     const badgeHtml = product.platform === 'naver' 
-      ? `<span class="aetherx-badge aetherx-badge-naver">${product.sellerGrade}</span>`
-      : `<span class="aetherx-badge aetherx-badge-coupang">${product.hasRocket ? '로켓배송' : '일반'}</span>`;
+      ? `<span class="aetherx-item-pill-status aetherx-item-pill-status-naver">${product.sellerGrade}</span>`
+      : `<span class="aetherx-item-pill-status aetherx-item-pill-status-coupang">${product.hasRocket ? '로켓배송' : '일반'}</span>`;
 
     const adBadgeHtml = product.isAd 
-      ? `<span class="aetherx-badge" style="background-color: #EF4444; color: white; border: 1px solid #EF4444; margin-left: 4px; font-weight: 700;">광고상품</span>` 
+      ? `<span class="aetherx-item-pill-status" style="background-color: #EF4444; color: white; border: 1px solid #EF4444; margin-left: 4px; font-weight: 700;">광고상품</span>` 
       : '';
 
     // 목표 마진율 역산 적용
@@ -41,40 +43,82 @@ window.UiRenderer = {
     };
     const unitText = currencyUnits[activeCurrency] || "위안";
 
-    overlayDiv.innerHTML = `
-      <div class="aetherx-metric-item aetherx-tooltip-container">
-        <span>📊 <span class="aetherx-metric-val">${salesEst.minSales}~${salesEst.maxSales}</span>개 (${salesEst.confidence}%)</span>
-        <div class="aetherx-tooltip">${salesEst.reason}</div>
-      </div>
-      <div class="aetherx-metric-item aetherx-tooltip-container">
-        <span>마진: <span style="color: ${marginColor} !important; font-weight: 700 !important; font-size: 11px !important;">${defaultMargin}%</span></span>
-        <div class="aetherx-tooltip">기본 예상 마진율입니다. (수수료: ${product.platform === 'naver' ? '3.85%' : '10.5%'}, 추정 원가: 35%, 국내 배송비: 3,000원 반영)<br>🎯 <b>목표 마진 ${targetMargin}%</b> 달성을 위한 최대 사입가: <b>${maxSourcingCny}${unitText}</b> 이하</div>
-      </div>
-      <div class="aetherx-metric-item aetherx-tooltip-container">
-        <span>리뷰: +${Math.round(product.reviewCount / 6) + 1}개/월</span>
-        <div class="aetherx-tooltip">${window.UiRenderer.getReviewSentiment(product)}</div>
-      </div>
-      <div>
-        ${badgeHtml}
-        ${adBadgeHtml}
-      </div>
-      <div style="display: flex; gap: 4px;">
-        <button class="aetherx-btn-search" style="background-color: #2563EB !important; color: white !important;">🔍 소싱사이트</button>
-        <button class="aetherx-btn-crop" style="background-color: #8B5CF6 !important; color: white !important;">✂️ 영역</button>
-        <button class="aetherx-btn-add">+</button>
-      </div>
-    `;
+    if (product.platform === 'coupang') {
+      overlayDiv.innerHTML = `
+        <div class="aetherx-overlay-row" style="display: grid !important; grid-template-columns: 1fr 1fr 1fr !important; gap: 4px !important; width: 100% !important; border-bottom: 1px solid #E2E8F0 !important; padding-bottom: 6px !important; margin-bottom: 4px !important; align-items: center !important;">
+          <div class="aetherx-metric-item aetherx-tooltip-container" style="white-space: nowrap !important; justify-content: center !important; border-right: 1px solid #E2E8F0 !important; padding-right: 4px !important;">
+            <span style="font-size: 11px !important; font-weight: 500 !important; color: #475569 !important; line-height: 1.2 !important; display: flex !important; align-items: center !important; gap: 2px !important;">📊 <b style="color: #0F172A !important; font-weight: 700 !important;">${salesEst.minSales}~${salesEst.maxSales}개</b> <span style="font-size: 9px !important; color: #94A3B8 !important;">(${salesEst.confidence}%)</span></span>
+            <div class="aetherx-tooltip">${salesEst.reason}</div>
+          </div>
+          <div class="aetherx-metric-item aetherx-tooltip-container" style="white-space: nowrap !important; justify-content: center !important; border-right: 1px solid #E2E8F0 !important; padding-right: 4px !important;">
+            <span style="font-size: 11px !important; font-weight: 500 !important; color: #475569 !important; line-height: 1.2 !important;">마진: <b style="color: ${marginColor} !important; font-weight: 700 !important;">${defaultMargin}%</b></span>
+            <div class="aetherx-tooltip">기본 예상 마진율입니다. (수수료: ${product.platform === 'naver' ? '3.85%' : '10.5%'}, 추정 원가: 35%, 국내 배송비: 3,000원 반영)<br>🎯 <b>목표 마진 ${targetMargin}%</b> 달성을 위한 최대 사입가: <b>${maxSourcingCny}${unitText}</b> 이하</div>
+          </div>
+          <div class="aetherx-metric-item aetherx-tooltip-container" style="white-space: nowrap !important; justify-content: center !important;">
+            <span style="font-size: 11px !important; font-weight: 500 !important; color: #475569 !important; line-height: 1.2 !important;">리뷰: <b style="color: #0F172A !important; font-weight: 700 !important;">+${Math.round(product.reviewCount / 6) + 1}개</b><span style="font-size: 9px !important; color: #94A3B8 !important;">/월</span></span>
+            <div class="aetherx-tooltip">${window.UiRenderer.getReviewSentiment(product)}</div>
+          </div>
+        </div>
+        <div class="aetherx-overlay-row" style="display: flex !important; justify-content: space-between !important; align-items: center !important; width: 100% !important; margin-top: 4px !important; gap: 4px !important;">
+          <div style="display: flex !important; gap: 4px !important; align-items: center !important;">
+            ${badgeHtml}
+            ${adBadgeHtml}
+          </div>
+          <div style="display: flex !important; gap: 4px !important; align-items: center !important; margin-left: auto !important;">
+            <button class="aetherx-btn-search" style="background-color: #2563EB !important; color: white !important; white-space: nowrap !important; height: 20px !important; padding: 0 6px !important; display: flex !important; align-items: center !important; justify-content: center !important; font-size: 10px !important; border-radius: 4px !important; border: none !important; font-weight: 600 !important; cursor: pointer !important;">🔍 소싱</button>
+            <button class="aetherx-btn-crop" style="background-color: #8B5CF6 !important; color: white !important; white-space: nowrap !important; height: 20px !important; padding: 0 6px !important; display: flex !important; align-items: center !important; justify-content: center !important; font-size: 10px !important; border-radius: 4px !important; border: none !important; font-weight: 600 !important; cursor: pointer !important;">✂️ 영역</button>
+            <button class="aetherx-btn-add" style="background-color: #0F172A !important; color: white !important; white-space: nowrap !important; height: 20px !important; width: 20px !important; display: flex !important; align-items: center !important; justify-content: center !important; font-size: 11px !important; font-weight: 700 !important; border-radius: 4px !important; padding: 0 !important; border: none !important; cursor: pointer !important;">+</button>
+          </div>
+        </div>
+      `;
+    } else {
+      overlayDiv.innerHTML = `
+        <div class="aetherx-metric-item aetherx-tooltip-container">
+          <span>📊 <span class="aetherx-metric-val">${salesEst.minSales}~${salesEst.maxSales}</span>개 (${salesEst.confidence}%)</span>
+          <div class="aetherx-tooltip">${salesEst.reason}</div>
+        </div>
+        <div class="aetherx-metric-item aetherx-tooltip-container">
+          <span>마진: <span style="color: ${marginColor} !important; font-weight: 700 !important; font-size: 11px !important;">${defaultMargin}%</span></span>
+          <div class="aetherx-tooltip">기본 예상 마진율입니다. (수수료: ${product.platform === 'naver' ? '3.85%' : '10.5%'}, 추정 원가: 35%, 국내 배송비: 3,000원 반영)<br>🎯 <b>목표 마진 ${targetMargin}%</b> 달성을 위한 최대 사입가: <b>${maxSourcingCny}${unitText}</b> 이하</div>
+        </div>
+        <div class="aetherx-metric-item aetherx-tooltip-container">
+          <span>리뷰: +${Math.round(product.reviewCount / 6) + 1}개/월</span>
+          <div class="aetherx-tooltip">${window.UiRenderer.getReviewSentiment(product)}</div>
+        </div>
+        <div>
+          ${badgeHtml}
+          ${adBadgeHtml}
+        </div>
+        <div style="display: flex; gap: 4px;">
+          <button class="aetherx-btn-search" style="background-color: #2563EB !important; color: white !important;">🔍 소싱사이트</button>
+          <button class="aetherx-btn-crop" style="background-color: #8B5CF6 !important; color: white !important;">✂️ 영역</button>
+          <button class="aetherx-btn-add">+</button>
+        </div>
+      `;
+    }
 
     // 카드 요소의 적절한 위치(이름/가격 하단)에 인라인 바 삽입
-    let target = cardEl.querySelector('.price') || 
-                 cardEl.querySelector('div[class*="price_price__"]') ||
-                 cardEl.querySelector('div[class*="product_price__"]') ||
-                 cardEl.lastElementChild;
-                 
-    if (target) {
-      target.parentNode.insertBefore(overlayDiv, target.nextSibling);
-    } else {
+    if (product.platform === 'coupang') {
+      cardEl.style.setProperty('height', 'auto', 'important');
+      cardEl.style.setProperty('overflow', 'visible', 'important');
+      const mainLink = cardEl.querySelector('a.search-product-link') || cardEl.querySelector('a');
+      if (mainLink) {
+        mainLink.style.setProperty('height', 'auto', 'important');
+        mainLink.style.setProperty('display', 'flex', 'important');
+        mainLink.style.setProperty('flex-direction', 'column', 'important');
+      }
       cardEl.appendChild(overlayDiv);
+    } else {
+      let target = cardEl.querySelector('.price') || 
+                   cardEl.querySelector('div[class*="price_price__"]') ||
+                   cardEl.querySelector('div[class*="product_price__"]') ||
+                   cardEl.lastElementChild;
+                   
+      if (target) {
+        target.parentNode.insertBefore(overlayDiv, target.nextSibling);
+      } else {
+        cardEl.appendChild(overlayDiv);
+      }
     }
   },
 
@@ -136,7 +180,7 @@ window.UiRenderer = {
 
     const keywordStatsHtml = keyword ? `
       <div id="aetherx-keyword-stats" style="margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 11px; background-color: #F8FAFC; padding: 5px 10px; border-radius: 6px; border: 1px solid #E2E8F0; color: #334155; font-weight: 500;">
-        <span>🔍 키워드: <b style="color:#0F172A;">${keyword}</b></span>
+        <span>🔍 <b style="color:#0F172A;">${keyword}</b></span>
         <span>📦 상품수: <b style="color:#0F172A;">${simulatedProducts.toLocaleString()}</b>개</span>
         <span>📈 검색량: <b style="color:#0F172A;">${estimatedSearchVol.toLocaleString()}</b>회/월</span>
         <span>⚡ 경쟁강도: <span style="font-weight: 700; color: ${compColor};">${compIntensity}</span></span>
@@ -661,7 +705,7 @@ window.UiRenderer = {
     const itemsHtml = relatedAnalysis.map(item => `
       <div class="aetherx-related-card-item" data-keyword="${item.kw}" onmouseover="this.style.backgroundColor='#F1F5F9'; this.style.borderColor='#CBD5E1';" onmouseout="this.style.backgroundColor='#F8FAFC'; this.style.borderColor='#E2E8F0';" style="background-color: #F8FAFC !important; border: 1px solid #E2E8F0 !important; border-radius: 8px !important; padding: 10px 12px !important; display: flex !important; flex-direction: column !important; gap: 4px !important; font-family: inherit !important; font-size: 11px !important; flex: 1 1 calc(50% - 6px) !important; min-width: 170px !important; box-sizing: border-box !important; text-align: left !important; line-height: 1.4 !important; cursor: pointer !important; transition: all 0.2s ease-in-out !important;">
         <div style="font-weight: 700 !important; color: #2563EB !important; border-bottom: 1px solid #E2E8F0 !important; padding-bottom: 4px !important; margin-bottom: 2px !important; font-size: 11.5px !important; display: flex !important; justify-content: space-between !important; align-items: center !important;">
-          <span>🔍 키워드: ${item.kw}</span>
+          <span>🔍 ${item.kw}</span>
           <span style="font-size: 8px !important; font-weight: normal !important; color: #94A3B8 !important;">바로검색 ↗</span>
         </div>
         <div style="color: #475569 !important;">📦 상품수: <span style="font-weight: 600 !important; color: #0F172A !important;">${item.productsCount.toLocaleString()}</span>개</div>

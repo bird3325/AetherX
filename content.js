@@ -14,9 +14,20 @@
   const href = window.location.href;
   if (href.includes("shopping.naver.com")) {
     parser = window.NaverParser;
+    document.body.classList.add('aetherx-naver');
   } else if (href.includes("coupang.com")) {
     parser = window.CoupangParser;
+    document.body.classList.add('aetherx-coupang');
   }
+
+  // 스크롤 감지를 통한 fixed 필터바 활성화 상태 제어
+  window.addEventListener('scroll', () => {
+    if (window.scrollY > 150) {
+      document.body.classList.add('aetherx-scrolled');
+    } else {
+      document.body.classList.remove('aetherx-scrolled');
+    }
+  });
 
   if (!parser) {
     console.log("Aether X: Unsupported market page.");
@@ -437,9 +448,16 @@
       pageObserver.disconnect();
       try {
         // 필터바 삽입 대상 컨테이너 설정
-        if (!searchContainer) {
+        if (!searchContainer || !document.getElementById('aetherx-filter-bar')) {
           // 첫 번째 상품 요소의 부모를 기준으로 상단에 필터바 삽입
-          searchContainer = productElements[0].parentElement;
+          let targetContainer = productElements[0].parentElement;
+          if (window.location.href.includes("coupang.com")) {
+            const coupangMainList = document.querySelector('.search-sorting') || document.querySelector('#productList') || document.querySelector('#searchProductList') || document.querySelector('.search-product-list');
+            if (coupangMainList) {
+              targetContainer = coupangMainList;
+            }
+          }
+          searchContainer = targetContainer;
           window.UiRenderer.renderFilterBar(searchContainer, handleFilterApply);
         }
 
@@ -1354,6 +1372,7 @@
     });
 
     document.body.appendChild(container);
+  };
 
   // 9. 글로벌 클릭 이벤트 위임 리스너 (React 가상 DOM 갱신으로 인한 리스너 유실 방지)
   document.addEventListener('click', (e) => {
@@ -1574,6 +1593,11 @@
   pageObserver = new MutationObserver(() => {
     initPageElements();
   });
+
+  // 실시간 폴링 타이머 추가 (MutationObserver 보완 및 초기 바인딩 보장)
+  setInterval(() => {
+    initPageElements();
+  }, 1000);
 
   // 8. 초기 구동 및 무한 스크롤(동적 로딩) 감지
   // (저장소에서 활성화 상태 검사가 비동기로 처리되므로 해당 콜백에서 필요한 경우에만 감시를 가동합니다.)

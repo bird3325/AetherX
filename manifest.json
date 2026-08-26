@@ -24,7 +24,7 @@
     {
       "matches": [
         "https://search.shopping.naver.com/*",
-        "https://www.coupang.com/np/search*"
+        "https://www.coupang.com/*"
       ],
       "css": [
         "styles/overlay.css"
@@ -60,6 +60,9 @@
     {
       "matches": [
         "https://*.aliexpress.com/*"
+      ],
+      "css": [
+        "styles/overlay.css"
       ],
       "js": [
         "aliexpresscontent.js"
