@@ -22,8 +22,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function updateStatusText(isEnabled) {
     desc.textContent = isEnabled 
-      ? 'Aether X 기능이 켜져 있습니다.' 
-      : 'Aether X 기능이 일시 중지되었습니다.';
+      ? '셀러보드 X 기능이 켜져 있습니다.' 
+      : '셀러보드 X 기능이 일시 중지되었습니다.';
     desc.style.setProperty('color', isEnabled ? '#10B981' : '#94A3B8', 'important');
   }
 
@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Load settings fields
-  chrome.storage.local.get(["aetherx_settings", "aetherx_cny_rate", "aetherx_rates"], (result) => {
+  chrome.storage.local.get(["aetherx_settings", "aetherx_cny_rate", "aetherx_rates", "aetherx_rates_updated_at"], (result) => {
     const rates = result.aetherx_rates || { CNY: 195, USD: 1330, JPY: 9.09, EUR: 1440 };
     const settings = result.aetherx_settings || {
       currency: "CNY",
@@ -64,11 +64,48 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('sett-target-margin').value = settings.targetMarginRate !== undefined ? settings.targetMarginRate : 25;
     document.getElementById('sett-translation-blacklist').value = settings.blacklist || "";
 
+    function updateTimestampText(timestamp) {
+      const timeEl = document.getElementById('sett-rate-time');
+      if (!timeEl) return;
+      if (timestamp) {
+        const date = new Date(timestamp);
+        const yyyy = date.getFullYear();
+        const mm = String(date.getMonth() + 1).padStart(2, '0');
+        const dd = String(date.getDate()).padStart(2, '0');
+        const hh = String(date.getHours()).padStart(2, '0');
+        const min = String(date.getMinutes()).padStart(2, '0');
+        timeEl.textContent = `최근 갱신: ${yyyy}-${mm}-${dd} ${hh}:${min}`;
+      } else {
+        timeEl.textContent = '최근 갱신: 내역 없음';
+      }
+    }
+
+    updateTimestampText(result.aetherx_rates_updated_at);
+
     // Currency changed listener to update rate field automatically
     document.getElementById('sett-currency').addEventListener('change', (e) => {
       const cur = e.target.value;
       document.getElementById('sett-rate').value = rates[cur] || 195;
     });
+
+    // Real-time Rate Sync Handler
+    const triggerSync = () => {
+      chrome.runtime.sendMessage({ action: "syncCNYRate" }, (response) => {
+        if (response && response.success) {
+          const selectedCurrency = document.getElementById('sett-currency').value;
+          const newRates = response.rates;
+          document.getElementById('sett-rate').value = newRates[selectedCurrency] || response.rate;
+          
+          // Update local rates references
+          Object.assign(rates, newRates);
+          
+          updateTimestampText(response.updatedAt);
+        }
+      });
+    };
+
+    // 자동으로 동기화 실행
+    triggerSync();
   });
 
   // Save settings fields

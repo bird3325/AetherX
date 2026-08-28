@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Aether X",
+  "name": "셀러보드 X",
   "version": "1.0.0",
   "description": "중급 셀러를 위한 초경량 실시간 분석 & 원클릭 소싱 인텔리전스",
   "permissions": [
@@ -11,10 +11,12 @@
     "https://*.pstatic.net/*",
     "https://*.coupangcdn.com/*",
     "https://*.1688.com/*",
-    "https://*.aliexpress.com/*"
+    "https://*.aliexpress.com/*",
+    "https://*.gmarket.co.kr/*",
+    "https://*.auction.co.kr/*"
   ],
   "action": {
-    "default_title": "Aether X",
+    "default_title": "셀러보드 X",
     "default_popup": "popup.html"
   },
   "background": {
@@ -24,7 +26,9 @@
     {
       "matches": [
         "https://search.shopping.naver.com/*",
-        "https://www.coupang.com/*"
+        "https://www.coupang.com/*",
+        "https://*.gmarket.co.kr/*",
+        "https://*.auction.co.kr/*"
       ],
       "css": [
         "styles/overlay.css"
@@ -32,6 +36,8 @@
       "js": [
         "subagents/naverParser.js",
         "subagents/coupangParser.js",
+        "subagents/gmarketParser.js",
+        "subagents/auctionParser.js",
         "subagents/calculator.js",
         "subagents/uiRenderer.js",
         "content.js"

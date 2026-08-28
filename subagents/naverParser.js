@@ -34,12 +34,17 @@ window.NaverParser = {
       return true;
     });
 
-    // 클래스명 정규식 매칭 검사로 실제 메인 상품 카드만 한번 더 필터링 (adProduct_item__XXXXX / product_item__XXXXX)
+    // 클래스명 정규식 매칭 검사로 실제 메인 상품 카드만 한번 더 필터링 및 "오늘의 프라임상품" 제외
     return parentFiltered.filter(el => {
+      if (this.isPrimeProduct(el)) return false;
       return Array.from(el.classList).some(cls => 
         /^(ad)?product_item__[a-zA-Z0-9]+$/i.test(cls)
       );
     });
+  },
+
+  isPrimeProduct: function(el) {
+    return false;
   },
 
   // 개별 상품 요소에서 데이터 파싱

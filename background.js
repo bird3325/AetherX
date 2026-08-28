@@ -15,7 +15,8 @@ function fetchExchangeRates() {
         };
         chrome.storage.local.set({ 
           aetherx_rates: rates, 
-          aetherx_cny_rate: rates.CNY 
+          aetherx_cny_rate: rates.CNY,
+          aetherx_rates_updated_at: Date.now()
         }, () => {
           console.log("Aether X background: All rates updated:", rates);
         });
@@ -51,11 +52,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             JPY: parseFloat((krw / data.rates.JPY).toFixed(4)),
             EUR: parseFloat((krw / data.rates.EUR).toFixed(2))
           };
+          const now = Date.now();
           chrome.storage.local.set({ 
             aetherx_rates: rates, 
-            aetherx_cny_rate: rates.CNY 
+            aetherx_cny_rate: rates.CNY,
+            aetherx_rates_updated_at: now
           }, () => {
-            sendResponse({ success: true, rates: rates, rate: rates.CNY });
+            sendResponse({ success: true, rates: rates, rate: rates.CNY, updatedAt: now });
           });
         } else {
           sendResponse({ success: false });

@@ -48,6 +48,8 @@ window.Calculator = {
   getPlatformFeeRate: function(platform) {
     if (platform === 'naver') {
       return 0.0385; // 네이버 스마트스토어 평균 연동 수수료 (3.85%)
+    } else if (platform === 'gmarket' || platform === 'auction') {
+      return 0.12; // 지마켓 / 옥션 평균 카테고리 수수료 (12%)
     } else {
       return 0.105; // 쿠팡 평균 카테고리 수수료 (10.5%)
     }

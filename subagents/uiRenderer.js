@@ -1,7 +1,41 @@
 // UI Rendering Sub-agent
 window.UiRenderer = {
+  getSearchUrlForCurrentSite: function(kw) {
+    const href = window.location.href;
+    const q = encodeURIComponent(kw);
+    
+    if (href.includes("gmarket.co.kr")) {
+      return `https://browse.gmarket.co.kr/search?keyword=${q}`;
+    }
+    if (href.includes("auction.co.kr")) {
+      return `https://browse.auction.co.kr/search?keyword=${q}`;
+    }
+    if (href.includes("coupang.com")) {
+      return `https://www.coupang.com/np/search?q=${q}`;
+    }
+    if (href.includes("11st.co.kr")) {
+      return `https://search.11st.co.kr/Search.tmall?kwd=${q}`;
+    }
+    if (href.includes("aliexpress.com")) {
+      return `https://www.aliexpress.com/w/wholesale-${q}.html`;
+    }
+    return `https://search.shopping.naver.com/search/all?query=${q}`;
+  },
+
   // 1. Clean Overlay 렌더링
   renderOverlay: function(product, cardEl, onAddCompare) {
+    // "오늘의 프라임상품" 검사 및 오버레이 노출 방지
+    const isPrime = (window.GmarketParser && window.GmarketParser.isPrimeProduct && window.GmarketParser.isPrimeProduct(cardEl)) ||
+                    (window.AuctionParser && window.AuctionParser.isPrimeProduct && window.AuctionParser.isPrimeProduct(cardEl)) ||
+                    (window.CoupangParser && window.CoupangParser.isPrimeProduct && window.CoupangParser.isPrimeProduct(cardEl)) ||
+                    (window.NaverParser && window.NaverParser.isPrimeProduct && window.NaverParser.isPrimeProduct(cardEl));
+    
+    if (isPrime) {
+      const existingOverlay = cardEl.querySelector('.aetherx-clean-overlay');
+      if (existingOverlay) existingOverlay.remove();
+      return;
+    }
+
     // 중복 방지
     if (cardEl.querySelector('.aetherx-clean-overlay')) return;
 
@@ -22,10 +56,15 @@ window.UiRenderer = {
       marginColor = '#D97706'; // Warning (Yellow)
     }
 
-    // 네이버 등급 혹은 쿠팡 로켓뱃지 정보
-    const badgeHtml = product.platform === 'naver' 
-      ? `<span class="aetherx-item-pill-status aetherx-item-pill-status-naver">${product.sellerGrade}</span>`
-      : `<span class="aetherx-item-pill-status aetherx-item-pill-status-coupang">${product.hasRocket ? '로켓배송' : '일반'}</span>`;
+    // 네이버 등급, 쿠팡 로켓뱃지, 지마켓, 옥션 뱃지 정보
+    let badgeHtml = `<span class="aetherx-item-pill-status aetherx-item-pill-status-naver">${product.sellerGrade || '일반'}</span>`;
+    if (product.platform === 'coupang') {
+      badgeHtml = `<span class="aetherx-item-pill-status aetherx-item-pill-status-coupang">${product.hasRocket ? '로켓배송' : '일반'}</span>`;
+    } else if (product.platform === 'gmarket') {
+      badgeHtml = `<span class="aetherx-item-pill-status" style="background-color: #00B050 !important; color: white !important; border: none !important; font-weight: 700 !important;">지마켓</span>`;
+    } else if (product.platform === 'auction') {
+      badgeHtml = `<span class="aetherx-item-pill-status" style="background-color: #E61717 !important; color: white !important; border: none !important; font-weight: 700 !important;">옥션</span>`;
+    }
 
     const adBadgeHtml = product.isAd 
       ? `<span class="aetherx-item-pill-status" style="background-color: #EF4444; color: white; border: 1px solid #EF4444; margin-left: 4px; font-weight: 700;">광고상품</span>` 
@@ -133,15 +172,61 @@ window.UiRenderer = {
       keyword = urlParams.get("query") || "";
     } else if (window.location.href.includes("coupang.com")) {
       keyword = urlParams.get("q") || "";
+    } else if (window.location.href.includes("gmarket.co.kr") || window.location.href.includes("auction.co.kr")) {
+      keyword = urlParams.get("k") || urlParams.get("keyword") || urlParams.get("q") || "";
     }
     keyword = keyword.trim();
 
-    const currentParser = window.location.href.includes("shopping.naver.com") 
-      ? window.NaverParser 
-      : window.CoupangParser;
+    let currentParser = window.NaverParser;
+    if (window.location.href.includes("coupang.com")) {
+      currentParser = window.CoupangParser;
+    } else if (window.location.href.includes("gmarket.co.kr")) {
+      currentParser = window.GmarketParser;
+    } else if (window.location.href.includes("auction.co.kr")) {
+      currentParser = window.AuctionParser;
+    }
 
+    const productElements = currentParser ? currentParser.getProductElements() : [];
     const totalProducts = currentParser ? currentParser.getTotalProducts() : 0;
-    
+
+    // 키워드 빈도 추출 및 상위 10개 태그 선정
+    let topTagsHtml = "";
+    if (keyword && productElements.length > 0) {
+      const stopWords = new Set(["무료배송", "당일발송", "당일배송", "국내배송", "해외배송", "특가", "할인", "추천", "최저가", "정품", "사은품", "증정", "국산", "수입", "신상", "신제품", "인기", "추천", "대용량", "어린이", "성인", "남성", "여성", "화이트", "블랙", "세트", "단품", "기획", "색상", "선택"]);
+      const wordCounts = {};
+      
+      productElements.forEach(el => {
+        const parsed = currentParser.parseElement(el);
+        if (parsed && parsed.title) {
+          let cleaned = parsed.title.replace(/\[[^\]]*\]/g, " ").replace(/\([^\)]*\)/g, " ");
+          cleaned = cleaned.replace(/[^\w\sㄱ-ㅎㅏ-ㅣ가-힣]/g, " ");
+          
+          const words = cleaned.split(/\s+/).filter(w => w.length >= 2);
+          const uniqueWordsInTitle = new Set(words);
+          
+          uniqueWordsInTitle.forEach(w => {
+            if (!stopWords.has(w) && !w.match(/^\d+$/)) {
+              wordCounts[w] = (wordCounts[w] || 0) + 1;
+            }
+          });
+        }
+      });
+      
+      const sortedWords = Object.entries(wordCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(entry => entry[0]);
+      
+      window.aetherxTopTags = sortedWords;
+      if (sortedWords.length > 0) {
+        topTagsHtml = `
+          <span style="margin-left: 12px; color: #64748B; font-weight: 500; display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap;">🏷️ 상위 태그: 
+            ${sortedWords.map(tag => `<span style="background-color: #E2E8F0; color: #334155; padding: 1px 4px; border-radius: 3px; font-size: 10px; font-weight: 600;">#${tag}</span>`).join('')}
+          </span>
+        `;
+      }
+    }
+
     // 키워드 기반 일관된 검색량 생성용 해시 함수
     const getKeywordHash = (str) => {
       let hash = 0;
@@ -179,8 +264,8 @@ window.UiRenderer = {
     }
 
     const keywordStatsHtml = keyword ? `
-      <div id="aetherx-keyword-stats" style="margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 11px; background-color: #F8FAFC; padding: 5px 10px; border-radius: 6px; border: 1px solid #E2E8F0; color: #334155; font-weight: 500;">
-        <span>🔍 <b style="color:#0F172A;">${keyword}</b></span>
+      <div id="aetherx-keyword-stats" style="width: 100% !important; display: flex !important; align-items: center !important; justify-content: flex-end !important; border-top: 1px solid #E2E8F0 !important; color: #334155 !important; font-weight: 500 !important; font-size: 11px !important; margin-top: 8px !important; padding-top: 8px !important; gap: 12px !important; flex-wrap: wrap !important;">
+        <span>🔍 키워드: <b style="color:#0F172A;">${keyword}</b></span>
         <span>📦 상품수: <b style="color:#0F172A;">${simulatedProducts.toLocaleString()}</b>개</span>
         <span>📈 검색량: <b style="color:#0F172A;">${estimatedSearchVol.toLocaleString()}</b>회/월</span>
         <span>⚡ 경쟁강도: <span style="font-weight: 700; color: ${compColor};">${compIntensity}</span></span>
@@ -193,53 +278,53 @@ window.UiRenderer = {
     filterBar.style.cssText = 'flex-wrap: wrap !important;';
 
     filterBar.innerHTML = `
-      <div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start; justify-content: center; min-height: 40px;">
-        <div class="aetherx-filter-title" style="margin-bottom: 0px !important;">Aether X 스마트 필터</div>
-        <button id="aetherx-filter-help-toggle" style="background: none !important; border: none !important; padding: 0 !important; color: #2563EB !important; font-size: 10px !important; cursor: pointer !important; display: flex !important; align-items: center !important; gap: 2px !important; font-weight: 600 !important; font-family: inherit !important;">
-          ❓ 도움말 보기
-        </button>
-      </div>
-      <div class="aetherx-filter-inputs" style="position: relative; display: flex; flex-direction: column; gap: 8px; align-items: flex-end; flex: 1;">
-        <!-- 첫번째 열: 필터 입력 컨트롤들 (오른쪽 정렬) -->
-        <div class="aetherx-filter-controls-row" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; width: 100%;">
-          <div class="aetherx-filter-group">
-            <label>마진율</label>
-            <input type="number" id="aetherx-filter-margin" placeholder="25" style="width: 50px;">
-            <span>% 이상</span>
-          </div>
-          <div class="aetherx-filter-group">
-            <label>리뷰 수</label>
-            <input type="number" id="aetherx-filter-reviews-min" placeholder="10" style="width: 60px;">
-            <span>~</span>
-            <input type="number" id="aetherx-filter-reviews-max" placeholder="500" style="width: 60px;">
-          </div>
-          <div class="aetherx-filter-group">
-            <label>로켓배송만</label>
-            <input type="checkbox" id="aetherx-filter-rocket">
-          </div>
-          <div class="aetherx-filter-group">
-            <label>해외배송 제외</label>
-            <input type="checkbox" id="aetherx-filter-exclude-overseas">
-          </div>
-          <button class="aetherx-btn-filter-apply" id="aetherx-filter-apply-btn">적용하기</button>
-          <button class="aetherx-btn-filter-apply" id="aetherx-btn-history-toggle" style="background-color: #475569 !important; color: white !important; margin-left: 4px;">최근 소싱 내역</button>
-          <button class="aetherx-btn-filter-apply" id="aetherx-btn-settings-toggle" style="background-color: #0F172A !important; color: white !important; margin-left: 4px;">⚙️ 상세 설정</button>
+      <div style="display: flex; justify-content: space-between; align-items: stretch; width: 100% !important; gap: 16px !important;">
+        <div style="display: flex; flex-direction: column; gap: 4px; align-items: flex-start; justify-content: center; min-width: 130px; flex-shrink: 0;">
+          <div class="aetherx-filter-title" style="margin-bottom: 0px !important;">셀러보드 X 스마트 필터</div>
+          <button id="aetherx-filter-help-toggle" style="background: none !important; border: none !important; padding: 0 !important; color: #2563EB !important; font-size: 10px !important; cursor: pointer !important; display: flex !important; align-items: center !important; gap: 2px !important; font-weight: 600 !important; font-family: inherit !important;">
+            ❓ 도움말 보기
+          </button>
         </div>
-        
-        <!-- 두번째 열: 초기화 및 이동 버튼 그룹(왼쪽) + 키워드 메타 통계 (오른쪽) -->
-        <div style="display: flex; width: 100%; justify-content: space-between; align-items: center; gap: 10px; margin-top: 4px;">
-          <div id="aetherx-filter-bottom-actions" style="display: flex; gap: 6px; align-items: center;">
-            <button class="aetherx-btn-filter-apply" id="aetherx-filter-reset-btn" style="background-color: #E2E8F0 !important; color: #475569 !important; border: 1px solid #CBD5E1 !important; display: none;">초기화</button>
-            <button class="aetherx-btn-filter-apply" id="aetherx-filter-prev-btn" style="background-color: #8B5CF6 !important; color: white !important; display: none;">▲</button>
-            <button class="aetherx-btn-filter-apply" id="aetherx-filter-next-btn" style="background-color: #8B5CF6 !important; color: white !important; display: none;">▼</button>
+        <div style="display: flex; flex-direction: column; flex-grow: 1; justify-content: center; overflow: visible !important;">
+          <div class="aetherx-filter-inputs" style="position: relative; display: flex; flex-direction: row; gap: 6px; align-items: center; justify-content: flex-end; width: 100% !important; flex-wrap: nowrap !important;">
+            <div class="aetherx-filter-controls-row" style="display: flex; align-items: center; gap: 6px; flex-wrap: nowrap !important; justify-content: flex-end; white-space: nowrap !important;">
+              <div class="aetherx-filter-group">
+                <label>마진율</label>
+                <input type="number" id="aetherx-filter-margin" placeholder="25" style="width: 50px;">
+                <span>% 이상</span>
+              </div>
+              <div class="aetherx-filter-group">
+                <label>리뷰 수</label>
+                <input type="number" id="aetherx-filter-reviews-min" placeholder="10" style="width: 60px;">
+                <span>~</span>
+                <input type="number" id="aetherx-filter-reviews-max" placeholder="500" style="width: 60px;">
+              </div>
+              <div class="aetherx-filter-group">
+                <label>로켓배송만</label>
+                <input type="checkbox" id="aetherx-filter-rocket">
+              </div>
+              <div class="aetherx-filter-group">
+                <label>해외배송 제외</label>
+                <input type="checkbox" id="aetherx-filter-exclude-overseas">
+              </div>
+              <button class="aetherx-btn-filter-apply" id="aetherx-filter-apply-btn">적용하기</button>
+              <button class="aetherx-btn-filter-apply" id="aetherx-btn-history-toggle" style="background-color: #475569 !important; color: white !important; margin-left: 4px;">최근 소싱 내역</button>
+              <button class="aetherx-btn-filter-apply" id="aetherx-btn-settings-toggle" style="background-color: #0F172A !important; color: white !important; margin-left: 4px;">⚙️ 상세 설정</button>
+              
+              <!-- 필터 추가 액션 버튼들을 동일 팩 내로 이동하여 우측 완전 정렬 보장 -->
+              <button class="aetherx-btn-filter-apply" id="aetherx-filter-reset-btn" style="background-color: #E2E8F0 !important; color: #475569 !important; border: 1px solid #CBD5E1 !important; display: none;">초기화</button>
+              <button class="aetherx-btn-filter-apply" id="aetherx-filter-prev-btn" style="background-color: #8B5CF6 !important; color: white !important; display: none;">▲</button>
+              <button class="aetherx-btn-filter-apply" id="aetherx-filter-next-btn" style="background-color: #8B5CF6 !important; color: white !important; display: none;">▼</button>
+            </div>
           </div>
           ${keywordStatsHtml}
         </div>
+      </div>
 
         <!-- 도움말 패널 (클릭 시 아래로 확장) -->
         <div id="aetherx-filter-help-panel" style="display: none !important; width: 100% !important; flex-basis: 100% !important; border-top: 1px dashed #E2E8F0 !important; padding-top: 12px !important; margin-top: 12px !important; font-size: 11px !important; color: #475569 !important; line-height: 1.6 !important; text-align: left !important; font-family: inherit !important;">
           <div style="font-weight: 700 !important; color: #0F172A !important; margin-bottom: 8px !important; font-size: 12px !important; display: flex !important; align-items: center !important; gap: 4px !important;">
-            💡 Aether X 상품 노출바 도움말 및 가이드
+            💡 셀러보드 X 상품 노출바 도움말 및 가이드
           </div>
           <div style="display: grid !important; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important; gap: 16px !important;">
             <div style="background-color: #F8FAFC !important; padding: 8px 10px !important; border-radius: 6px !important; border: 1px solid #F1F5F9 !important;">
@@ -289,9 +374,12 @@ window.UiRenderer = {
                 <option value="EUR">EUR (유로)</option>
               </select>
             </div>
-            <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 2px;">
               <label style="color:#0F172A; font-weight:500;">적용 환율(원)</label>
               <input type="number" id="aetherx-sett-cny" style="width:70px; padding:2px; font-size:11px;" step="0.001">
+            </div>
+            <div style="text-align:right; font-size:9px; color:#64748B; margin-top:-4px; margin-bottom:4px;" id="aetherx-sett-rate-time">
+              최근 갱신: 미확인
             </div>
             <div style="display:flex; justify-content:space-between; align-items:center;">
               <label style="color:#0F172A; font-weight:500;">관세율 (%)</label>
@@ -391,7 +479,7 @@ window.UiRenderer = {
       const isHidden = settingsPanel.style.display === 'none';
       settingsPanel.style.display = isHidden ? 'block' : 'none';
       if (isHidden) {
-        chrome.storage.local.get(["aetherx_settings", "aetherx_cny_rate", "aetherx_rates"], (result) => {
+        chrome.storage.local.get(["aetherx_settings", "aetherx_cny_rate", "aetherx_rates", "aetherx_rates_updated_at"], (result) => {
           const settings = result.aetherx_settings || {};
           const rates = result.aetherx_rates || { CNY: 195, USD: 1330, JPY: 9.09, EUR: 1440 };
           const currency = settings.currency || "CNY";
@@ -404,6 +492,24 @@ window.UiRenderer = {
           document.getElementById('aetherx-sett-dom-ship').value = settings.domShipping !== undefined ? settings.domShipping : 3000;
           document.getElementById('aetherx-sett-target-margin').value = settings.targetMarginRate !== undefined ? settings.targetMarginRate : 25;
           
+          const updateTimestampText = (timestamp) => {
+            const timeEl = document.getElementById('aetherx-sett-rate-time');
+            if (!timeEl) return;
+            if (timestamp) {
+              const date = new Date(timestamp);
+              const yyyy = date.getFullYear();
+              const mm = String(date.getMonth() + 1).padStart(2, '0');
+              const dd = String(date.getDate()).padStart(2, '0');
+              const hh = String(date.getHours()).padStart(2, '0');
+              const min = String(date.getMinutes()).padStart(2, '0');
+              timeEl.textContent = `최근 갱신: ${yyyy}-${mm}-${dd} ${hh}:${min}`;
+            } else {
+              timeEl.textContent = '최근 갱신: 내역 없음';
+            }
+          };
+
+          updateTimestampText(result.aetherx_rates_updated_at);
+
           // 통화 변경 시 실시간 환율 변경 반영
           const selectEl = document.getElementById('aetherx-sett-currency');
           const rateInput = document.getElementById('aetherx-sett-cny');
@@ -411,6 +517,25 @@ window.UiRenderer = {
             const selectedCur = selectEl.value;
             rateInput.value = rates[selectedCur] || 195;
           };
+
+          // 실시간 환율 갱신 핸들러 함수화
+          const triggerSync = () => {
+            chrome.runtime.sendMessage({ action: "syncCNYRate" }, (response) => {
+              if (response && response.success) {
+                const selectedCur = selectEl.value;
+                const newRates = response.rates;
+                rateInput.value = newRates[selectedCur] || response.rate;
+                
+                // 로컬 래이트 참조 갱신
+                Object.assign(rates, newRates);
+                
+                updateTimestampText(response.updatedAt);
+              }
+            });
+          };
+
+          // 설정 창을 열 때 자동으로 동기화 실행
+          triggerSync();
         });
       }
     });
@@ -559,7 +684,7 @@ window.UiRenderer = {
 
   // 3. Quick Compare 도크 렌더링
   renderCompareDock: function(compareList, onRemoveItem, onClear, onBulk1688, onExportCSV) {
-    window.aetherxCardStates = window.aetherxCardStates || { relatedOpen: true, compareOpen: false };
+    window.aetherxCardStates = window.aetherxCardStates || { relatedOpen: true, compareOpen: false, tagOpen: false };
 
     let dock = document.getElementById('aetherx-compare-dock');
     if (!dock) {
@@ -572,7 +697,7 @@ window.UiRenderer = {
     const isCollapsed = dock.classList.contains('aetherx-collapsed');
 
     if (isCollapsed) {
-      dock.innerHTML = `<span>📊 Aether X 분석 (${compareList.length}/5)</span>`;
+      dock.innerHTML = `<span>📊 셀러보드 X 분석 (${compareList.length}/5)</span>`;
       
       // 복원 이벤트
       dock.onclick = () => {
@@ -656,14 +781,36 @@ window.UiRenderer = {
 
       const isMatchingOpen = (window.aetherxOpenMatchingRows || new Set()).has(index);
 
+      // 다중 마켓 입점 판매가 overrides 로드
+      const platformOverrides = (window.aetherxPlatformPriceOverrides || {})[prod.id] || {};
+      const priceNaver = platformOverrides.naver !== undefined ? platformOverrides.naver : prod.price;
+      const priceCoupang = platformOverrides.coupang !== undefined ? platformOverrides.coupang : prod.price;
+      const priceGmarket = platformOverrides.gmarket !== undefined ? platformOverrides.gmarket : prod.price;
+
+      const calcPrecisePlatform = (sellingPrice, sourcingCNY, platform) => {
+        return window.Calculator.calculatePreciseMargin(
+          sellingPrice,
+          sourcingCNY,
+          platform,
+          window.Calculator.CUSTOMS_DUTY_RATE * 100,
+          window.Calculator.VAT_RATE * 100,
+          window.Calculator.INT_SHIPPING,
+          window.Calculator.DOM_SHIPPING,
+          cnyRate
+        );
+      };
+
+      const matchNaver = calcPrecisePlatform(priceNaver, cnyB, 'naver');
+      const matchCoupang = calcPrecisePlatform(priceCoupang, cnyB, 'coupang');
+      const matchGmarket = calcPrecisePlatform(priceGmarket, cnyB, 'gmarket');
+
       rowsHtml += `
         <tr id="aetherx-row-main-${index}">
           <td>
             <img class="aetherx-compare-product-img" src="${displayImgUrl}" style="cursor: pointer;" title="클릭 시 가상 매칭 비교 토글">
             <div class="aetherx-compare-title-cell" title="${prod.title}">${prod.title}</div>
             <div style="display: flex; gap: 2px; margin-top: 4px; justify-content: center;">
-              <button class="aetherx-btn-search aetherx-btn-compare-1688" data-index="${index}" style="padding: 2px 4px !important; font-size: 8px !important; line-height: 10px !important;">1688</button>
-              <button class="aetherx-btn-ali aetherx-btn-compare-ali" data-index="${index}" style="padding: 2px 4px !important; font-size: 8px !important; line-height: 10px !important;">Ali</button>
+              <button class="aetherx-btn-search aetherx-btn-compare-sourcing" data-index="${index}" style="padding: 2px 4px !important; font-size: 8px !important; line-height: 10px !important; background-color: #2563EB !important; color: white !important;">소싱</button>
               <button class="aetherx-btn-search aetherx-btn-compare-virtual" data-index="${index}" style="padding: 2px 4px !important; font-size: 8px !important; line-height: 10px !important; background-color: #4F46E5 !important; color: white !important;">매칭</button>
               <button class="aetherx-btn-add aetherx-btn-compare-remove" data-remove-index="${index}" style="padding: 2px 4px !important; font-size: 8px !important; line-height: 10px !important; background-color: #64748B !important;">삭제</button>
             </div>
@@ -688,29 +835,110 @@ window.UiRenderer = {
                 <span>🟡 <b>공급처 B (일반사입):</b> <input type="number" class="aetherx-compare-price-override" data-prod-id="${prod.id}" data-match-type="cnyB" value="${cnyB}" style="width: 55px; padding: 2px 4px; font-size: 11px; background: white; border: 1px solid #CBD5E1; border-radius: 4px; text-align: right;" step="0.1"> 위안 (약 ${matchB.krw.toLocaleString()}원)</span>
                 <span style="color:#D97706; font-weight:700;">예상마진: ${matchB.margin}%</span>
               </div>
-              <div style="display:flex; justify-content:space-between; align-items:center; padding-top:2px;">
+              <div style="display:flex; justify-content:space-between; border-bottom:1px dashed #E2E8F0; padding-bottom:4px; align-items:center;">
                 <span>🔴 <b>공급처 C (소량사입):</b> <input type="number" class="aetherx-compare-price-override" data-prod-id="${prod.id}" data-match-type="cnyC" value="${cnyC}" style="width: 55px; padding: 2px 4px; font-size: 11px; background: white; border: 1px solid #CBD5E1; border-radius: 4px; text-align: right;" step="0.1"> 위안 (약 ${matchC.krw.toLocaleString()}원)</span>
                 <span style="color:#DC2626; font-weight:700;">예상마진: ${matchC.margin}%</span>
               </div>
+            </div>
+
+            <!-- 다중 마켓 입점 판매가 및 수수료 정밀 비교 툴 -->
+            <div style="margin-top: 10px; border-top: 1px dashed #CBD5E1; padding-top: 8px;">
+              <div style="font-weight: 700; color: #1E293B; margin-bottom: 6px; display: flex; align-items: center; gap: 4px;">
+                🌐 다중 마켓 시뮬레이션 (공급처 B 기준)
+              </div>
+              <table style="width: 100%; border-collapse: collapse; font-size: 10px; text-align: left; background: white; border: 1px solid #E2E8F0; border-radius: 6px; overflow: hidden;">
+                <thead>
+                  <tr style="background-color: #F8FAFC; border-bottom: 1px solid #E2E8F0;">
+                    <th style="padding: 4px 6px; font-weight: 600; color: #475569;">마켓</th>
+                    <th style="padding: 4px 6px; font-weight: 600; color: #475569; width: 90px;">입점 판매가</th>
+                    <th style="padding: 4px 6px; font-weight: 600; color: #475569; text-align: right;">수수료(율)</th>
+                    <th style="padding: 4px 6px; font-weight: 600; color: #475569; text-align: right;">정밀원가</th>
+                    <th style="padding: 4px 6px; font-weight: 600; color: #475569; text-align: right;">마진(순이익)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr style="border-bottom: 1px solid #F1F5F9;">
+                    <td style="padding: 4px 6px; font-weight: 600; color: #03C75A;">네이버</td>
+                    <td style="padding: 4px 6px;">
+                      <input type="number" class="aetherx-platform-price-input" data-prod-id="${prod.id}" data-platform="naver" value="${priceNaver}" style="width: 65px; font-size: 10px; padding: 1px 3px; border: 1px solid #CBD5E1; border-radius: 3px; text-align: right;">원
+                    </td>
+                    <td style="padding: 4px 6px; text-align: right; color: #64748B;">${matchNaver.platformFee.toLocaleString()}원 (3.85%)</td>
+                    <td style="padding: 4px 6px; text-align: right; color: #64748B;">${matchNaver.totalSourcingCost.toLocaleString()}원</td>
+                    <td style="padding: 4px 6px; text-align: right; font-weight: 700; color: #059669;">${matchNaver.marginRate}% (${matchNaver.netProfit.toLocaleString()}원)</td>
+                  </tr>
+                  <tr style="border-bottom: 1px solid #F1F5F9;">
+                    <td style="padding: 4px 6px; font-weight: 600; color: #E11D48;">쿠팡</td>
+                    <td style="padding: 4px 6px;">
+                      <input type="number" class="aetherx-platform-price-input" data-prod-id="${prod.id}" data-platform="coupang" value="${priceCoupang}" style="width: 65px; font-size: 10px; padding: 1px 3px; border: 1px solid #CBD5E1; border-radius: 3px; text-align: right;">원
+                    </td>
+                    <td style="padding: 4px 6px; text-align: right; color: #64748B;">${matchCoupang.platformFee.toLocaleString()}원 (10.5%)</td>
+                    <td style="padding: 4px 6px; text-align: right; color: #64748B;">${matchCoupang.totalSourcingCost.toLocaleString()}원</td>
+                    <td style="padding: 4px 6px; text-align: right; font-weight: 700; color: #059669;">${matchCoupang.marginRate}% (${matchCoupang.netProfit.toLocaleString()}원)</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 4px 6px; font-weight: 600; color: #2563EB;">지마켓/옥션</td>
+                    <td style="padding: 4px 6px;">
+                      <input type="number" class="aetherx-platform-price-input" data-prod-id="${prod.id}" data-platform="gmarket" value="${priceGmarket}" style="width: 65px; font-size: 10px; padding: 1px 3px; border: 1px solid #CBD5E1; border-radius: 3px; text-align: right;">원
+                    </td>
+                    <td style="padding: 4px 6px; text-align: right; color: #64748B;">${matchGmarket.platformFee.toLocaleString()}원 (12%)</td>
+                    <td style="padding: 4px 6px; text-align: right; color: #64748B;">${matchGmarket.totalSourcingCost.toLocaleString()}원</td>
+                    <td style="padding: 4px 6px; text-align: right; font-weight: 700; color: #059669;">${matchGmarket.marginRate}% (${matchGmarket.netProfit.toLocaleString()}원)</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </td>
         </tr>
       `;
     });
 
-    const relatedAnalysis = window.aetherxRelatedKeywordsAnalysis || [];
+    window.aetherxRelatedSort = window.aetherxRelatedSort || { key: 'vol', dir: 'desc' };
+    const sortState = window.aetherxRelatedSort;
+
+    const getCompRank = (item) => {
+      if (item.label && item.label.includes("블루오션")) return 1;
+      if (item.label && item.label.includes("보통")) return 2;
+      if (item.label && item.label.includes("레드오션")) return 3;
+      return (item.productsCount || 0) / (item.vol || 1);
+    };
+
+    const rawAnalysis = window.aetherxRelatedKeywordsAnalysis || [];
+    const relatedAnalysis = [...rawAnalysis].sort((a, b) => {
+      if (sortState.key === 'kw') {
+        const res = (a.kw || '').localeCompare(b.kw || '');
+        return sortState.dir === 'asc' ? res : -res;
+      }
+      if (sortState.key === 'comp') {
+        const rankA = getCompRank(a);
+        const rankB = getCompRank(b);
+        return sortState.dir === 'asc' ? (rankA - rankB) : (rankB - rankA);
+      }
+      const valA = Number(a[sortState.key]) || 0;
+      const valB = Number(b[sortState.key]) || 0;
+      return sortState.dir === 'asc' ? (valA - valB) : (valB - valA);
+    });
+
+    const getSortArrow = (key) => {
+      if (sortState.key === key) {
+        return sortState.dir === 'desc' ? ' ▼' : ' ▲';
+      }
+      return ' ↕';
+    };
+
     const relatedOpen = window.aetherxCardStates.relatedOpen;
     const compareOpen = window.aetherxCardStates.compareOpen;
 
     const itemsHtml = relatedAnalysis.map(item => `
-      <div class="aetherx-related-card-item" data-keyword="${item.kw}" onmouseover="this.style.backgroundColor='#F1F5F9'; this.style.borderColor='#CBD5E1';" onmouseout="this.style.backgroundColor='#F8FAFC'; this.style.borderColor='#E2E8F0';" style="background-color: #F8FAFC !important; border: 1px solid #E2E8F0 !important; border-radius: 8px !important; padding: 10px 12px !important; display: flex !important; flex-direction: column !important; gap: 4px !important; font-family: inherit !important; font-size: 11px !important; flex: 1 1 calc(50% - 6px) !important; min-width: 170px !important; box-sizing: border-box !important; text-align: left !important; line-height: 1.4 !important; cursor: pointer !important; transition: all 0.2s ease-in-out !important;">
-        <div style="font-weight: 700 !important; color: #2563EB !important; border-bottom: 1px solid #E2E8F0 !important; padding-bottom: 4px !important; margin-bottom: 2px !important; font-size: 11.5px !important; display: flex !important; justify-content: space-between !important; align-items: center !important;">
-          <span>🔍 ${item.kw}</span>
-          <span style="font-size: 8px !important; font-weight: normal !important; color: #94A3B8 !important;">바로검색 ↗</span>
+      <div class="aetherx-related-card-item" data-keyword="${item.kw}" onmouseover="this.style.backgroundColor='#F1F5F9'; this.style.borderColor='#CBD5E1';" onmouseout="this.style.backgroundColor='#F8FAFC'; this.style.borderColor='#E2E8F0';">
+        <div class="aetherx-rel-header">
+          <span class="aetherx-kw-icon">🔍 </span><span class="aetherx-kw-text">${item.kw}</span>
         </div>
-        <div style="color: #475569 !important;">📦 상품수: <span style="font-weight: 600 !important; color: #0F172A !important;">${item.productsCount.toLocaleString()}</span>개</div>
-        <div style="color: #475569 !important;">📈 검색량: <span style="font-weight: 600 !important; color: #0F172A !important;">${item.vol.toLocaleString()}</span>회/월</div>
-        <div style="color: #475569 !important;">⚡ 경쟁강도: <span style="font-weight: 700 !important; color: ${item.color} !important;">${item.label}</span></div>
+        <div class="aetherx-rel-metrics">
+          <span><span class="aetherx-metric-label">📦 상품수: </span><b style="color: #0F172A !important;">${item.productsCount.toLocaleString()}</b>개</span>
+          <span><span class="aetherx-metric-label">📈 검색량: </span><b style="color: #0F172A !important;">${item.vol.toLocaleString()}</b>회/월</span>
+          <span><span class="aetherx-metric-label">⚡ 경쟁강도: </span><b style="color: ${item.color} !important;">${item.label}</b></span>
+          <span class="aetherx-rel-btn-inline" title="바로검색" style="font-size: 12px !important; color: #2563EB !important; cursor: pointer; user-select: none;">🔍</span>
+        </div>
       </div>
     `).join('');
 
@@ -720,8 +948,59 @@ window.UiRenderer = {
           <span>🔍 연관검색어 분석 리스트 (${relatedAnalysis.length}개)</span>
           <span style="font-size: 10px !important; color: #2563EB !important; font-weight: 600 !important;">${relatedOpen ? '▲ 접기' : '▼ 펼치기'}</span>
         </div>
-        <div id="aetherx-related-body" style="display: ${relatedOpen ? 'flex' : 'none'} !important; flex-wrap: wrap !important; gap: 6px !important; overflow-y: auto !important; padding-bottom: 4px !important; width: 100% !important; flex: 1 1 auto !important;">
+        <div id="aetherx-related-body" style="${relatedOpen ? '' : 'display: none !important;'}">
+          <div id="aetherx-related-list-header" class="aetherx-related-list-header">
+            <div id="aetherx-sort-kw" style="flex: 1 1 180px; min-width: 140px; text-align: left; cursor: pointer; user-select: none;">🔍 연관 키워드${getSortArrow('kw')}</div>
+            <div style="display: flex; align-items: center; gap: 14px; margin-left: auto;">
+              <span id="aetherx-sort-products" style="width: 90px; text-align: right; cursor: pointer; user-select: none;">📦 상품수${getSortArrow('productsCount')}</span>
+              <span id="aetherx-sort-vol" style="width: 110px; text-align: right; cursor: pointer; user-select: none;">📈 월 검색량${getSortArrow('vol')}</span>
+              <span id="aetherx-sort-comp" style="width: 90px; text-align: center; cursor: pointer; user-select: none;">⚡ 경쟁강도${getSortArrow('comp')}</span>
+              <span style="width: 50px; text-align: center;">🔍</span>
+            </div>
+          </div>
           ${itemsHtml ? itemsHtml : '<div style="color: #64748B !important; font-size: 11px !important; padding: 12px 0 !important; text-align: center !important; width: 100% !important;">연관검색어가 발견되지 않았습니다.</div>'}
+        </div>
+      </div>
+    `;
+
+    const tagOpen = window.aetherxCardStates.tagOpen;
+    const topTags = window.aetherxTopTags || [];
+    
+    // 추천태그 생성
+    let recommendedTags = relatedAnalysis
+      .filter(item => item.label.includes("블루오션") || (item.vol >= 1000 && !item.label.includes("레드오션")))
+      .slice(0, 6)
+      .map(item => item.kw);
+
+    if (recommendedTags.length === 0) {
+      const urlParams = new URLSearchParams(window.location.search);
+      let pageKw = urlParams.get("query") || urlParams.get("q") || urlParams.get("k") || urlParams.get("keyword") || "";
+      pageKw = pageKw.trim();
+      const qualifiers = ["추천", "인기", "도매", "가성비", "전문", "사이트"];
+      recommendedTags = qualifiers.map(q => pageKw ? `${pageKw} ${q}` : q).slice(0, 5);
+    }
+
+    const tagAnalysisCardHtml = `
+      <div style="background: #FFFFFF !important; border: 1px solid #E2E8F0 !important; border-radius: 8px !important; padding: 12px !important; box-shadow: 0 1px 3px rgba(0,0,0,0.02) !important; text-align: left !important; width: 100% !important; box-sizing: border-box !important; display: flex !important; flex-direction: column !important; ${tagOpen ? 'flex: 1 1 auto !important; min-height: 140px !important; overflow: hidden !important;' : 'flex: 0 0 auto !important;' }">
+        <div id="aetherx-toggle-tag" style="font-weight: 700 !important; font-size: 12px !important; margin-bottom: ${tagOpen ? '10px' : '0px'} !important; color: #0F172A !important; display: flex !important; align-items: center !important; justify-content: space-between !important; cursor: pointer !important; padding-bottom: ${tagOpen ? '6px' : '0px'} !important; border-bottom: ${tagOpen ? '1px solid #F1F5F9' : 'none'} !important; user-select: none !important; flex: 0 0 auto !important;">
+          <span>🏷️ 태그분석 (상위태그 & 추천태그)</span>
+          <span style="font-size: 10px !important; color: #2563EB !important; font-weight: 600 !important;">${tagOpen ? '▲ 접기' : '▼ 펼치기'}</span>
+        </div>
+        <div id="aetherx-tag-body" style="${tagOpen ? 'display: flex !important; flex-direction: column !important; gap: 10px !important; overflow-y: auto !important; flex: 1 1 auto !important;' : 'display: none !important;'}">
+          <div style="font-size: 11px !important; color: #475569 !important; line-height: 1.5 !important;">
+            <div style="margin-bottom: 8px !important;">
+              <strong style="color: #0F172A !important; display: block !important; margin-bottom: 6px !important; font-size: 11px !important;">📈 경쟁사 상위 노출 태그 (클릭 시 복사)</strong>
+              <div style="display: flex !important; flex-wrap: wrap !important; gap: 4px !important;">
+                ${topTags.length > 0 ? topTags.map(tag => `<span class="aetherx-tag-chip" data-tag="${tag}" style="background-color: #F1F5F9 !important; border: 1px solid #E2E8F0 !important; color: #334155 !important; padding: 2px 6px !important; border-radius: 4px !important; font-size: 10px !important; font-weight: 600 !important; cursor: pointer !important; user-select: none !important;">#${tag}</span>`).join('') : '<span style="color:#94A3B8;">수집된 상위 태그가 없습니다.</span>'}
+              </div>
+            </div>
+            <div style="margin-top: 10px !important; border-top: 1px dashed #E2E8F0 !important; padding-top: 8px !important;">
+              <strong style="color: #2563EB !important; display: block !important; margin-bottom: 6px !important; font-size: 11px !important;">🎯 셀러 추천 태그 (블루오션 및 고효율)</strong>
+              <div style="display: flex !important; flex-wrap: wrap !important; gap: 4px !important;">
+                ${recommendedTags.map(tag => `<span class="aetherx-rec-tag-chip" data-tag="${tag}" style="background-color: #EFF6FF !important; border: 1px solid #BFDBFE !important; color: #1D4ED8 !important; padding: 2px 6px !important; border-radius: 4px !important; font-size: 10px !important; font-weight: 600 !important; cursor: pointer !important; user-select: none !important;">#${tag}</span>`).join('')}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     `;
@@ -763,14 +1042,37 @@ window.UiRenderer = {
 
     dock.innerHTML = `
       <div class="aetherx-dock-header">
-        <span class="aetherx-dock-title">Aether X 분석 패널</span>
+        <span class="aetherx-dock-title">셀러보드 X 분석 패널</span>
         <button class="aetherx-dock-close" id="aetherx-dock-close-btn">✕ 접기</button>
       </div>
       <div class="aetherx-dock-body" style="display: flex !important; flex-direction: column !important; gap: 14px !important; padding: 14px !important; height: 460px !important; box-sizing: border-box !important; overflow: hidden !important;">
         ${relatedKeywordsCardHtml}
+        ${tagAnalysisCardHtml}
         ${compareProductsCardHtml}
       </div>
     `;
+
+    // 연관검색어 리스트 헤더 컬럼 정렬(소팅) 이벤트 바인딩
+    [
+      { id: 'aetherx-sort-kw', key: 'kw' },
+      { id: 'aetherx-sort-products', key: 'productsCount' },
+      { id: 'aetherx-sort-vol', key: 'vol' },
+      { id: 'aetherx-sort-comp', key: 'comp' }
+    ].forEach(col => {
+      const el = dock.querySelector('#' + col.id);
+      if (el) {
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (window.aetherxRelatedSort.key === col.key) {
+            window.aetherxRelatedSort.dir = window.aetherxRelatedSort.dir === 'desc' ? 'asc' : 'desc';
+          } else {
+            window.aetherxRelatedSort.key = col.key;
+            window.aetherxRelatedSort.dir = 'desc';
+          }
+          window.UiRenderer.renderCompareDock(compareList, onRemoveItem, onClear, onBulk1688, onExportCSV);
+        });
+      }
+    });
 
     // 이벤트 리스너 리바인딩
     document.getElementById('aetherx-dock-close-btn').addEventListener('click', (e) => {
@@ -789,23 +1091,13 @@ window.UiRenderer = {
       });
     });
 
-    // 1688 소싱 버튼 매핑
-    dock.querySelectorAll('.aetherx-btn-compare-1688').forEach(btn => {
+    // 소싱 버튼 매핑
+    dock.querySelectorAll('.aetherx-btn-compare-sourcing').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const index = parseInt(btn.getAttribute('data-index'), 10);
         const prod = compareList[index];
-        window.triggerSourcing(prod, '1688', btn);
-      });
-    });
-
-    // Ali 소싱 버튼 매핑
-    dock.querySelectorAll('.aetherx-btn-compare-ali').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const index = parseInt(btn.getAttribute('data-index'), 10);
-        const prod = compareList[index];
-        window.triggerSourcing(prod, 'ali', btn);
+        window.triggerIntegratedSourcing(prod, btn);
       });
     });
 
@@ -863,6 +1155,25 @@ window.UiRenderer = {
       });
     });
 
+    // 다중 마켓 입점 판매가 직접 편집 및 마진 실시간 갱신 이벤트 바인딩
+    dock.querySelectorAll('.aetherx-platform-price-input').forEach(input => {
+      input.addEventListener('change', (e) => {
+        const prodId = input.getAttribute('data-prod-id');
+        const platform = input.getAttribute('data-platform');
+        const newVal = parseFloat(input.value);
+        if (isNaN(newVal) || newVal < 0) return;
+
+        window.aetherxPlatformPriceOverrides = window.aetherxPlatformPriceOverrides || {};
+        window.aetherxPlatformPriceOverrides[prodId] = window.aetherxPlatformPriceOverrides[prodId] || {};
+        window.aetherxPlatformPriceOverrides[prodId][platform] = newVal;
+
+        chrome.storage.local.set({ aetherx_platform_price_overrides: window.aetherxPlatformPriceOverrides }, () => {
+          // 상태 보존 상태로 도크 리렌더링
+          window.UiRenderer.renderCompareDock(compareList, onRemoveItem, onClear, onBulk1688, onExportCSV);
+        });
+      });
+    });
+
     // 실시간 1688 소싱 버튼 매핑 (가상 매칭 서브행 내부)
     dock.querySelectorAll('.aetherx-btn-virtual-search').forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -891,19 +1202,77 @@ window.UiRenderer = {
     // 연관검색어 카드 접기/펼치기 토글 이벤트 바인딩
     document.getElementById('aetherx-toggle-related').addEventListener('click', (e) => {
       e.stopPropagation();
-      const nextRelatedState = !window.aetherxCardStates.relatedOpen;
-      window.aetherxCardStates.relatedOpen = nextRelatedState;
-      window.aetherxCardStates.compareOpen = !nextRelatedState; // 상호 보완 토글 보장 (항상 하나는 열림)
+      const nextState = !window.aetherxCardStates.relatedOpen;
+      if (nextState) {
+        window.aetherxCardStates.relatedOpen = true;
+        window.aetherxCardStates.compareOpen = false;
+        window.aetherxCardStates.tagOpen = false;
+      } else {
+        window.aetherxCardStates.relatedOpen = false;
+      }
       window.UiRenderer.renderCompareDock(compareList, onRemoveItem, onClear, onBulk1688, onExportCSV);
     });
 
     // 비교하기 상품 카드 접기/펼치기 토글 이벤트 바인딩
     document.getElementById('aetherx-toggle-compare').addEventListener('click', (e) => {
       e.stopPropagation();
-      const nextCompareState = !window.aetherxCardStates.compareOpen;
-      window.aetherxCardStates.compareOpen = nextCompareState;
-      window.aetherxCardStates.relatedOpen = !nextCompareState; // 상호 보완 토글 보장 (항상 하나는 열림)
+      const nextState = !window.aetherxCardStates.compareOpen;
+      if (nextState) {
+        window.aetherxCardStates.compareOpen = true;
+        window.aetherxCardStates.relatedOpen = false;
+        window.aetherxCardStates.tagOpen = false;
+      } else {
+        window.aetherxCardStates.compareOpen = false;
+      }
       window.UiRenderer.renderCompareDock(compareList, onRemoveItem, onClear, onBulk1688, onExportCSV);
+    });
+
+    // 태그분석 카드 접기/펼치기 토글 이벤트 바인딩
+    const toggleTagEl = document.getElementById('aetherx-toggle-tag');
+    if (toggleTagEl) {
+      toggleTagEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const nextState = !window.aetherxCardStates.tagOpen;
+        if (nextState) {
+          window.aetherxCardStates.tagOpen = true;
+          window.aetherxCardStates.relatedOpen = false;
+          window.aetherxCardStates.compareOpen = false;
+        } else {
+          window.aetherxCardStates.tagOpen = false;
+        }
+        window.UiRenderer.renderCompareDock(compareList, onRemoveItem, onClear, onBulk1688, onExportCSV);
+      });
+    }
+
+    // 태그 클릭 시 클립보드 복사 이벤트 바인딩
+    dock.querySelectorAll('.aetherx-tag-chip, .aetherx-rec-tag-chip').forEach(chip => {
+      chip.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const tagText = chip.getAttribute('data-tag');
+        if (!tagText) return;
+        
+        navigator.clipboard.writeText(tagText).then(() => {
+          const originalText = chip.textContent;
+          chip.textContent = '복사 완료!';
+          const isRec = chip.classList.contains('aetherx-rec-tag-chip');
+          chip.style.backgroundColor = '#10B981';
+          chip.style.color = '#FFFFFF';
+          chip.style.borderColor = '#10B981';
+          
+          setTimeout(() => {
+            chip.textContent = originalText;
+            if (!isRec) {
+              chip.style.backgroundColor = '#F1F5F9';
+              chip.style.color = '#334155';
+              chip.style.borderColor = '#E2E8F0';
+            } else {
+              chip.style.backgroundColor = '#EFF6FF';
+              chip.style.color = '#1D4ED8';
+              chip.style.borderColor = '#BFDBFE';
+            }
+          }, 1000);
+        });
+      });
     });
 
     // 연관검색어 카드 아이템 클릭 시 바로검색 실행
@@ -913,14 +1282,137 @@ window.UiRenderer = {
         const kw = card.getAttribute('data-keyword');
         if (!kw) return;
         
-        const isCoupang = window.location.href.includes("coupang.com");
-        const searchUrl = isCoupang 
-          ? `https://www.coupang.com/np/search?q=${encodeURIComponent(kw)}` 
-          : `https://search.shopping.naver.com/search/all?query=${encodeURIComponent(kw)}`;
-          
-        window.location.href = searchUrl;
+        window.location.href = window.UiRenderer.getSearchUrlForCurrentSite(kw);
       });
     });
+
+    const initW = dock.offsetWidth || parseInt(dock.style.width) || 460;
+    if (initW >= 520) {
+      dock.classList.add('aetherx-wide-mode');
+    } else {
+      dock.classList.remove('aetherx-wide-mode');
+    }
+
+    // 4. 모퉁이 및 사이드 드래그 사이즈 조절 (Resize Handles) 바인딩
+    if (!dock.querySelector('.aetherx-resize-handle-tl')) {
+      const handleTL = document.createElement('div');
+      handleTL.className = 'aetherx-resize-handle-tl';
+      handleTL.title = '드래그하여 분석 패널 크기 조절';
+      handleTL.style.cssText = `
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 16px !important;
+        height: 16px !important;
+        cursor: nwse-resize !important;
+        z-index: 10000000 !important;
+        background: linear-gradient(135deg, #3B82F6 45%, transparent 50%) !important;
+        border-top-left-radius: 12px !important;
+      `;
+      dock.appendChild(handleTL);
+
+      const handleL = document.createElement('div');
+      handleL.className = 'aetherx-resize-handle-l';
+      handleL.style.cssText = `
+        position: absolute !important;
+        top: 16px !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        width: 6px !important;
+        cursor: ew-resize !important;
+        z-index: 9999999 !important;
+      `;
+      dock.appendChild(handleL);
+
+      const handleT = document.createElement('div');
+      handleT.className = 'aetherx-resize-handle-t';
+      handleT.style.cssText = `
+        position: absolute !important;
+        top: 0 !important;
+        left: 16px !important;
+        right: 0 !important;
+        height: 6px !important;
+        cursor: ns-resize !important;
+        z-index: 9999999 !important;
+      `;
+      dock.appendChild(handleT);
+
+      const setupResize = (handleEl, resizeW, resizeH) => {
+        let isResizing = false;
+        let startX, startY, startW, startH;
+        let rafId = null;
+
+        handleEl.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          isResizing = true;
+          dock.classList.add('aetherx-resizing');
+          document.body.style.userSelect = 'none';
+
+          startX = e.clientX;
+          startY = e.clientY;
+          startW = dock.offsetWidth;
+          startH = dock.offsetHeight;
+
+          let latestX = startX;
+          let latestY = startY;
+
+          const updateSize = () => {
+            if (!isResizing) return;
+            const dx = startX - latestX;
+            const dy = startY - latestY;
+            
+            if (resizeW) {
+              const newW = Math.min(Math.max(300, startW + dx), window.innerWidth - 30);
+              dock.style.width = newW + 'px';
+              dock.dataset.userWidth = newW + 'px';
+              if (newW >= 520) {
+                dock.classList.add('aetherx-wide-mode');
+              } else {
+                dock.classList.remove('aetherx-wide-mode');
+              }
+            }
+            if (resizeH) {
+              const newH = Math.min(Math.max(220, startH + dy), window.innerHeight - 30);
+              dock.style.height = newH + 'px';
+              dock.dataset.userHeight = newH + 'px';
+            }
+            rafId = null;
+          };
+
+          const onMouseMove = (moveEvent) => {
+            if (!isResizing) return;
+            latestX = moveEvent.clientX;
+            latestY = moveEvent.clientY;
+            if (!rafId) {
+              rafId = requestAnimationFrame(updateSize);
+            }
+          };
+
+          const onMouseUp = () => {
+            isResizing = false;
+            if (rafId) {
+              cancelAnimationFrame(rafId);
+              rafId = null;
+            }
+            dock.classList.remove('aetherx-resizing');
+            document.body.style.userSelect = '';
+            window.removeEventListener('mousemove', onMouseMove);
+            window.removeEventListener('mouseup', onMouseUp);
+          };
+
+          window.addEventListener('mousemove', onMouseMove, { passive: true });
+          window.addEventListener('mouseup', onMouseUp);
+        });
+      };
+
+      setupResize(handleTL, true, true);
+      setupResize(handleL, true, false);
+      setupResize(handleT, false, true);
+    }
+
+    if (dock.dataset.userWidth) dock.style.width = dock.dataset.userWidth;
+    if (dock.dataset.userHeight) dock.style.height = dock.dataset.userHeight;
   },
 
   // 리뷰 긍/부정 키워드 감성 분석 함수

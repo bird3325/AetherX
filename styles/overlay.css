@@ -188,13 +188,157 @@
   position: fixed !important;
   right: 16px !important;
   bottom: 16px !important;
-  z-index: 999999 !important;
+  z-index: 2147483647 !important;
   background-color: #FFFFFF !important;
   border: 1px solid #E2E8F0 !important;
   border-radius: 12px !important;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
   transition: width 0.3s ease, height 0.3s ease !important;
   overflow: hidden !important;
+}
+
+.aetherx-compare-dock.aetherx-resizing {
+  transition: none !important;
+  user-select: none !important;
+}
+
+/* 연관검색어 가변 카드/리스트 레이아웃 */
+.aetherx-related-list-header {
+  display: none !important;
+  background-color: #E2E8F0 !important;
+  border-radius: 6px !important;
+  padding: 6px 12px !important;
+  font-weight: 700 !important;
+  font-size: 11px !important;
+  color: #334155 !important;
+  margin-bottom: 6px !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.aetherx-compare-dock.aetherx-wide-mode .aetherx-related-list-header {
+  display: flex !important;
+}
+
+#aetherx-related-body {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  flex-direction: row !important;
+  gap: 6px !important;
+  overflow-y: auto !important;
+  padding-bottom: 4px !important;
+  width: 100% !important;
+  flex: 1 1 auto !important;
+}
+
+.aetherx-related-card-item {
+  background-color: #F8FAFC !important;
+  border: 1px solid #E2E8F0 !important;
+  border-radius: 8px !important;
+  padding: 10px 12px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+  font-family: inherit !important;
+  font-size: 11px !important;
+  width: calc(50% - 3px) !important;
+  box-sizing: border-box !important;
+  text-align: left !important;
+  line-height: 1.4 !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease-in-out !important;
+}
+
+.aetherx-related-card-item .aetherx-rel-header {
+  font-weight: 700 !important;
+  color: #2563EB !important;
+  border-bottom: 1px solid #E2E8F0 !important;
+  padding-bottom: 4px !important;
+  margin-bottom: 2px !important;
+  font-size: 11.5px !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+}
+
+.aetherx-related-card-item .aetherx-rel-metrics {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 3px !important;
+  color: #475569 !important;
+}
+
+.aetherx-related-card-item .aetherx-rel-btn-inline {
+  display: none !important;
+}
+
+/* 와이드 패널 (폭 >= 520px): 수평 1줄 리스트형 전환 */
+.aetherx-compare-dock.aetherx-wide-mode #aetherx-related-body {
+  flex-direction: column !important;
+  flex-wrap: nowrap !important;
+}
+
+.aetherx-compare-dock.aetherx-wide-mode .aetherx-related-card-item {
+  width: 100% !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 8px 12px !important;
+  border-radius: 6px !important;
+  white-space: nowrap !important;
+}
+
+.aetherx-compare-dock.aetherx-wide-mode .aetherx-related-card-item .aetherx-kw-icon,
+.aetherx-compare-dock.aetherx-wide-mode .aetherx-related-card-item .aetherx-metric-label {
+  display: none !important;
+}
+
+.aetherx-compare-dock.aetherx-wide-mode .aetherx-related-card-item .aetherx-rel-header {
+  border-bottom: none !important;
+  padding-bottom: 0 !important;
+  margin-bottom: 0 !important;
+  flex: 1 1 180px !important;
+  min-width: 140px !important;
+}
+
+.aetherx-compare-dock.aetherx-wide-mode .aetherx-related-card-item .aetherx-rel-btn-top {
+  display: none !important;
+}
+
+.aetherx-compare-dock.aetherx-wide-mode .aetherx-related-card-item .aetherx-rel-metrics {
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 14px !important;
+  margin-left: auto !important;
+  flex: 0 0 auto !important;
+}
+
+.aetherx-compare-dock.aetherx-wide-mode .aetherx-related-card-item .aetherx-rel-metrics > span:nth-child(1) {
+  width: 90px !important;
+  text-align: right !important;
+  box-sizing: border-box !important;
+}
+
+.aetherx-compare-dock.aetherx-wide-mode .aetherx-related-card-item .aetherx-rel-metrics > span:nth-child(2) {
+  width: 110px !important;
+  text-align: right !important;
+  box-sizing: border-box !important;
+}
+
+.aetherx-compare-dock.aetherx-wide-mode .aetherx-related-card-item .aetherx-rel-metrics > span:nth-child(3) {
+  width: 90px !important;
+  text-align: center !important;
+  box-sizing: border-box !important;
+}
+
+.aetherx-compare-dock.aetherx-wide-mode .aetherx-related-card-item .aetherx-rel-btn-inline {
+  width: 50px !important;
+  display: flex !important;
+  justify-content: center !important;
+  margin-left: 0 !important;
+  box-sizing: border-box !important;
 }
 
 .aetherx-compare-dock.aetherx-collapsed {
@@ -215,8 +359,12 @@
 }
 
 .aetherx-compare-dock.aetherx-expanded {
-  width: 460px !important;
-  height: 520px !important;
+  width: 460px;
+  height: 520px;
+  min-width: 300px !important;
+  min-height: 220px !important;
+  max-width: 95vw !important;
+  max-height: 95vh !important;
   display: flex !important;
   flex-direction: column !important;
 }

@@ -29,8 +29,32 @@ window.CoupangParser = {
     
     const uniqueElements = [...new Set(elements)];
     
-    // 부모-자식 관계에 있는 하위 중복 요소 제거 (최상위 상품 카드 요소만 남김)
+    // 부모-자식 관계에 있는 하위 중복 요소 제거 및 "오늘의 프라임상품", 장바구니/최근본 상품 사이드 패널 영역 제외
     return uniqueElements.filter(el => {
+      // 최근본 상품 및 장바구니 사이드바 영역 제외
+      const isExcludedSidePanel = el.closest('#todayViewList') || 
+                                  el.closest('[class*="recently-viewed"]') || 
+                                  el.closest('[id*="recently-viewed"]') ||
+                                  el.closest('.today-view') || 
+                                  el.closest('#today-view') ||
+                                  el.closest('[class*="today-view"]') ||
+                                  el.closest('[id*="today-view"]') ||
+                                  el.closest('#side-right') || 
+                                  el.closest('#right-sticky') ||
+                                  el.closest('#cartSidebar') || 
+                                  el.closest('.cart-sidebar') || 
+                                  el.closest('[class*="cart-sidebar"]') ||
+                                  el.closest('[id*="cart-sidebar"]') ||
+                                  el.closest('#quickCart') ||
+                                  el.closest('.quick-cart') ||
+                                  el.closest('.shopping-cart') ||
+                                  el.closest('#sticky-aside') ||
+                                  el.closest('#stickyRecentlyViewed');
+
+      if (isExcludedSidePanel) {
+        return false;
+      }
+
       let parent = el.parentElement;
       while (parent) {
         if (uniqueElements.includes(parent)) {
@@ -38,8 +62,17 @@ window.CoupangParser = {
         }
         parent = parent.parentElement;
       }
+
+      if (this.isPrimeProduct(el)) {
+        return false;
+      }
+
       return true;
     });
+  },
+
+  isPrimeProduct: function(el) {
+    return false;
   },
 
   // 개별 상품 요소에서 데이터 파싱

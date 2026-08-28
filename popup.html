@@ -14,17 +14,27 @@
     .header {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 12px;
       margin-bottom: 16px;
       border-bottom: 1px solid #1E293B;
       padding-bottom: 12px;
     }
+    .logo-container {
+      display: flex;
+      flex-direction: column;
+    }
     .logo-text {
-      font-size: 16px;
+      font-size: 20px;
       font-weight: 800;
-      background: linear-gradient(135deg, #818CF8, #60A5FA);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+      color: #3B82F6;
+      line-height: 1.1;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    .logo-subtitle {
+      font-size: 11px;
+      color: #94A3B8;
+      font-weight: 500;
+      margin-top: 3px;
     }
     .toggle-container {
       display: flex;
@@ -140,8 +150,14 @@
 </head>
 <body>
   <div class="header">
-    <span style="font-size: 18px;">⚡</span>
-    <span class="logo-text">Aether X Control</span>
+    <svg width="34" height="28" viewBox="0 0 34 28" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink: 0;">
+      <path d="M4 1.5H13C17.5 1.5 21 5 21 9.5C21 11.8 20 13.9 18.4 15.3C20.4 16.6 21.7 18.9 21.7 21.5C21.7 26 18.2 29.5 13.7 29.5H4L4 1.5Z" fill="#3B82F6" style="transform: skewX(-8deg); transform-origin: center;"/>
+      <path d="M12.5 5L7 14.5H12L10 24L16.5 12.5H11.5L13.5 5H12.5Z" fill="#0F172A" style="transform: skewX(-8deg); transform-origin: center;"/>
+    </svg>
+    <div class="logo-container">
+      <span class="logo-text">SellerBoard X</span>
+      <span class="logo-subtitle">셀러를 위한 분석 보드</span>
+    </div>
   </div>
   
   <div class="toggle-container">
@@ -151,7 +167,7 @@
       <span class="slider"></span>
     </label>
   </div>
-  <div class="status-text" id="status-desc">Aether X 기능이 켜져 있습니다.</div>
+  <div class="status-text" id="status-desc">셀러보드 X 기능이 켜져 있습니다.</div>
 
   <!-- 상세 마진 설정 아코디언 추가 -->
   <div class="settings-header" id="aetherx-settings-hdr">
@@ -168,9 +184,12 @@
         <option value="EUR">EUR (유로)</option>
       </select>
     </div>
-    <div class="form-group">
+    <div class="form-group" style="margin-bottom: 4px;">
       <span>적용 환율(원)</span>
       <input type="number" id="sett-rate" step="0.01">
+    </div>
+    <div style="text-align: right; font-size: 9px; color: #94A3B8; margin-top: -4px; margin-bottom: 8px;" id="sett-rate-time">
+      최근 갱신: 미확인
     </div>
     <div class="form-group">
       <span>관세율 (%)</span>

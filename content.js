@@ -1,5 +1,5 @@
 // Aether X Orchestrator (Content Script)
-(function() {
+(function () {
   console.log("Aether X Orchestrator initialized.");
 
   let parser = null;
@@ -9,6 +9,8 @@
   let currentHighlightIndex = -1;
   let pageObserver = null;
   let isAetherxEnabled = true;
+  let isMonitoringStarted = false;
+  let pollingInterval = null;
 
   // 1. 호스트 페이지 감지 및 파서 바인딩
   const href = window.location.href;
@@ -18,6 +20,12 @@
   } else if (href.includes("coupang.com")) {
     parser = window.CoupangParser;
     document.body.classList.add('aetherx-coupang');
+  } else if (href.includes("gmarket.co.kr")) {
+    parser = window.GmarketParser;
+    document.body.classList.add('aetherx-gmarket');
+  } else if (href.includes("auction.co.kr")) {
+    parser = window.AuctionParser;
+    document.body.classList.add('aetherx-auction');
   }
 
   // 스크롤 감지를 통한 fixed 필터바 활성화 상태 제어
@@ -35,7 +43,7 @@
   }
 
   // 2. 초기 로컬 스토리지 데이터 로드 (비교함 및 상세 설정 바인딩)
-  chrome.storage.local.get(["aetherx_compare_list", "aetherx_settings", "aetherx_cny_rate", "aetherx_rates", "aetherxEnabled", "aetherx_price_overrides"], (result) => {
+  chrome.storage.local.get(["aetherx_compare_list", "aetherx_settings", "aetherx_cny_rate", "aetherx_rates", "aetherxEnabled", "aetherx_price_overrides", "aetherx_platform_price_overrides"], (result) => {
     // 활성화 상태 검사 및 적용
     const isEnabled = result.aetherxEnabled !== false;
     isAetherxEnabled = isEnabled;
@@ -44,17 +52,30 @@
       window.aetherxPriceOverrides = result.aetherx_price_overrides;
     }
 
+    if (result.aetherx_platform_price_overrides) {
+      window.aetherxPlatformPriceOverrides = result.aetherx_platform_price_overrides;
+    }
+
     if (!isEnabled) {
       document.body.classList.add('aetherx-disabled');
       if (pageObserver) pageObserver.disconnect();
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+        pollingInterval = null;
+      }
     } else {
       document.body.classList.remove('aetherx-disabled');
-      // 활성화 상태일때만 최초 렌더링 구동 및 감시
-      initPageElements();
-      if (pageObserver) {
-        pageObserver.observe(document.body, {
-          childList: true,
-          subtree: true
+
+      const triggerStart = () => {
+        // startMonitoring 함수 호출
+        startMonitoring();
+      };
+
+      if (document.readyState === 'complete') {
+        setTimeout(triggerStart, 1500);
+      } else {
+        window.addEventListener('load', () => {
+          setTimeout(triggerStart, 1500);
         });
       }
     }
@@ -62,12 +83,12 @@
     if (result.aetherx_compare_list) {
       compareList = result.aetherx_compare_list;
     }
-    
+
     // 계산기 매개변수 및 환율 데이터 바인딩
     if (result.aetherx_cny_rate) {
       window.Calculator.CNY_RATE = result.aetherx_cny_rate;
     }
-    
+
     if (result.aetherx_rates) {
       window.Calculator.RATES = result.aetherx_rates;
     } else {
@@ -82,16 +103,16 @@
     if (result.aetherx_settings) {
       const settings = result.aetherx_settings;
       window.Calculator.ACTIVE_CURRENCY = settings.currency || "CNY";
-      
+
       if (settings.cnyRate) {
         const cur = window.Calculator.ACTIVE_CURRENCY;
         if (cur === "CNY") window.Calculator.CNY_RATE = settings.cnyRate;
         else if (window.Calculator.RATES[cur]) window.Calculator.RATES[cur] = settings.cnyRate;
       }
-      
+
       const activeRate = window.Calculator.RATES[window.Calculator.ACTIVE_CURRENCY] || window.Calculator.CNY_RATE;
       window.Calculator.CNY_RATE = activeRate;
-      
+
       if (settings.customsRate !== undefined) window.Calculator.CUSTOMS_DUTY_RATE = settings.customsRate / 100;
       if (settings.vatRate !== undefined) window.Calculator.VAT_RATE = settings.vatRate / 100;
       if (settings.intShipping !== undefined) window.Calculator.INT_SHIPPING = settings.intShipping;
@@ -126,13 +147,13 @@
           // 관찰자 해제 및 모든 Aether X 렌더링 엘리먼트 메모리 해제
           if (pageObserver) pageObserver.disconnect();
           document.querySelectorAll('.aetherx-clean-overlay').forEach(el => el.remove());
-          
+
           const filterBar = document.getElementById('aetherx-filter-bar');
           if (filterBar) {
             filterBar.remove();
             searchContainer = null;
           }
-          
+
           const dock = document.getElementById('aetherx-compare-dock');
           if (dock) dock.remove();
 
@@ -144,10 +165,13 @@
       }
 
       // 마진 계산 설정 및 가상 사입 단가 변경 시 실시간 반영
-      if (changes.hasOwnProperty('aetherx_settings') || changes.hasOwnProperty('aetherx_cny_rate') || changes.hasOwnProperty('aetherx_price_overrides')) {
-        chrome.storage.local.get(["aetherx_settings", "aetherx_cny_rate", "aetherx_price_overrides"], (result) => {
+      if (changes.hasOwnProperty('aetherx_settings') || changes.hasOwnProperty('aetherx_cny_rate') || changes.hasOwnProperty('aetherx_price_overrides') || changes.hasOwnProperty('aetherx_platform_price_overrides')) {
+        chrome.storage.local.get(["aetherx_settings", "aetherx_cny_rate", "aetherx_price_overrides", "aetherx_platform_price_overrides"], (result) => {
           if (result.aetherx_price_overrides) {
             window.aetherxPriceOverrides = result.aetherx_price_overrides;
+          }
+          if (result.aetherx_platform_price_overrides) {
+            window.aetherxPlatformPriceOverrides = result.aetherx_platform_price_overrides;
           }
           if (result.aetherx_settings) {
             const settings = result.aetherx_settings;
@@ -161,7 +185,7 @@
             if (settings.domShipping !== undefined) window.Calculator.DOM_SHIPPING = settings.domShipping;
             window.Calculator.TARGET_MARGIN_RATE = settings.targetMarginRate !== undefined ? settings.targetMarginRate : 25;
             window.aetherxTranslationBlacklist = settings.blacklist || "";
-            
+
             // 기존 렌더링된 오버레이 바들을 걷어내고 최신 마진 설정으로 강제 업데이트
             document.querySelectorAll('.aetherx-clean-overlay').forEach(el => el.remove());
             document.querySelectorAll('[data-aetherx-processed="true"]').forEach(el => {
@@ -216,7 +240,7 @@
           alert("비교함에 등록된 상품이 없습니다.");
           return;
         }
-        
+
         // 각 상품명의 키워드를 실시간 중국어로 번역 후 1688 검색 결과 탭 열기 (CORS 및 엑박 오류 0%)
         compareList.forEach(prod => {
           const searchKeyword = getCleanedSearchTitle(prod.title);
@@ -300,7 +324,6 @@
     entries.forEach(entry => {
       if (entry.isIntersecting) {
         const el = entry.target;
-        // 이미 파싱 및 오버레이 처리된 것은 건너뜀
         if (el.getAttribute('data-aetherx-processed') === 'true') {
           observer.unobserve(el);
           return;
@@ -312,8 +335,7 @@
           try {
             window.UiRenderer.renderOverlay(product, el, handleAddCompare);
             el.setAttribute('data-aetherx-processed', 'true');
-            
-            // 새로 오버레이가 생성되어 활성화되는 시점에도 필터 상태 즉시 갱신 적용
+
             if (currentFilterValues) {
               applyFilterToElement(el, currentFilterValues);
               updateHighlightNavigation();
@@ -334,77 +356,101 @@
   function injectRelatedKeywordsIntensity() {
     if (!isAetherxEnabled) return;
     try {
-      const currentQuery = (new URLSearchParams(window.location.search).get("query") || 
-                            new URLSearchParams(window.location.search).get("q") || "").trim().toLowerCase();
-                            
-      const allLinks = Array.from(document.querySelectorAll('a[href]'));
+      const urlParams = new URLSearchParams(window.location.search);
+      const currentQuery = (urlParams.get("query") ||
+        urlParams.get("q") ||
+        urlParams.get("k") ||
+        urlParams.get("keyword") || "").trim().toLowerCase();
+
       const tempAnalysis = [];
       const seenKws = new Set();
-      
-      allLinks.forEach(link => {
+
+      // 1. 연관검색어 전용 DOM 컨테이너 선택자
+      const relSelectors = [
+        'div[class*="related"] a',
+        'div[class*="rel_"] a',
+        'ul[class*="rel_"] a',
+        'div[class*="tag"] a',
+        'ul[class*="tag"] a',
+        'div[class*="keyword"] a',
+        '.search-related-keyword a',
+        '.box__tag-list a',
+        '.box__section-tag a',
+        '.box__tag_list a',
+        '#rel_search a',
+        'div[class*="search_rel"] a'
+      ];
+
+      const dedicatedEls = document.querySelectorAll(relSelectors.join(', '));
+      const allCandidateLinks = dedicatedEls.length > 0
+        ? Array.from(dedicatedEls)
+        : Array.from(document.querySelectorAll('a[href]'));
+
+      allCandidateLinks.forEach(link => {
         const href = link.getAttribute('href') || "";
         const text = link.textContent.trim().replace(/\s+/g, ' ');
-        if (!text || text.length < 2 || text.length > 20) return;
-        
-        // 검색 페이지 연결 링크 매칭 (네이버 쇼핑, 쿠팡, 알리 등)
-        const isNaverSearch = href.includes('search/all') && href.includes('query=');
+        if (!text || text.length < 2 || text.length > 25) return;
+
+        // 검색 URL 인자 매칭 (네이버, 쿠팡, 알리, 지마켓, 옥션)
+        const isNaverSearch = href.includes('query=');
         const isCoupangSearch = href.includes('search') && href.includes('q=');
         const isAliSearch = href.includes('SearchText=');
-        
-        if (isNaverSearch || isCoupangSearch || isAliSearch) {
-          let kw = "";
+        const isEsmSearch = href.includes('keyword=') || (href.includes('k=') && (href.includes('gmarket') || href.includes('auction')));
+        const isDedicatedRelLink = !!link.closest(relSelectors.join(', '));
+
+        if (isNaverSearch || isCoupangSearch || isAliSearch || isEsmSearch || isDedicatedRelLink) {
+          let kw = text;
           try {
             let urlObj;
             if (href.startsWith('http') || href.startsWith('//')) {
               urlObj = new URL(href.startsWith('//') ? window.location.protocol + href : href);
-            } else {
+            } else if (href.startsWith('/')) {
               urlObj = new URL(href, window.location.origin);
             }
-            
-            if (isNaverSearch) kw = urlObj.searchParams.get('query') || text;
-            else if (isCoupangSearch) kw = urlObj.searchParams.get('q') || text;
-            else if (isAliSearch) kw = urlObj.searchParams.get('SearchText') || text;
+
+            if (urlObj) {
+              kw = urlObj.searchParams.get('query') ||
+                urlObj.searchParams.get('q') ||
+                urlObj.searchParams.get('keyword') ||
+                urlObj.searchParams.get('k') ||
+                urlObj.searchParams.get('SearchText') || text;
+            }
           } catch (e) {
             kw = text;
           }
-          
-          kw = kw.trim();
-          
-          // 현재 검색 중인 메인 키워드 및 단순 페이지 번호는 제외
-          if (!kw || kw.toLowerCase() === currentQuery || /^\d+$/.test(kw)) return;
-          if (text.includes('원') || text.includes('리뷰') || text.includes('배송') || text.includes('등록') || text.includes('인기') || text.includes('최근')) return;
 
-          if (kw.length >= 2 && kw.length <= 15 && !seenKws.has(kw.toLowerCase())) {
+          kw = (kw || text).trim();
+
+          // 제외 키워드 필터링
+          if (!kw || kw.toLowerCase() === currentQuery || /^\d+$/.test(kw)) return;
+          if (text.includes('원') || text.includes('리뷰') || text.includes('배송') || text.includes('등록') || text.includes('인기') || text.includes('최근') || text.includes('더보기') || text.includes('접기')) return;
+
+          if (kw.length >= 2 && kw.length <= 20 && !seenKws.has(kw.toLowerCase())) {
             seenKws.add(kw.toLowerCase());
-            
-            // 키워드 기반 일관된 해시 함수 계산
+
             let hash = 0;
             for (let i = 0; i < kw.length; i++) {
               hash = kw.charCodeAt(i) + ((hash << 5) - hash);
             }
             hash = Math.abs(hash);
-            
-            // 경쟁강도 산출
+
             let label = "보통";
-            let color = "#D97706"; // Amber
+            let color = "#D97706";
             let ratio = 2.2;
             const mod = hash % 10;
             if (mod < 3) {
               label = "좋음 (블루오션)";
-              color = "#059669"; // Green
+              color = "#059669";
               ratio = 0.8 + (hash % 5) * 0.1;
             } else if (mod >= 7) {
               label = "치열 (레드오션)";
-              color = "#DC2626"; // Red
+              color = "#DC2626";
               ratio = 4.5 + (hash % 5) * 0.8;
             } else {
               ratio = 1.6 + (hash % 5) * 0.3;
             }
 
-            // 월 예상 검색량 산출
             const estimatedSearchVol = (hash % 18000) + 2000;
-            
-            // 상품수 역산
             const productsCount = Math.round(estimatedSearchVol * ratio);
 
             tempAnalysis.push({
@@ -414,23 +460,51 @@
               vol: estimatedSearchVol,
               productsCount: productsCount
             });
-            
-            // 기존 툴팁 속성 제거 및 커서 기본값 롤백
+
             link.removeAttribute('title');
-            link.style.cursor = '';
+            link.style.cursor = 'pointer';
             link.setAttribute('data-aetherx-kw-processed', 'true');
           }
         }
       });
-      
-      // 이전 분석 내용과 다른 경우에만 업데이트 및 리렌더링 (스크롤 시 무한 중복 렌더링으로 인한 화면 튐 방지)
-      const currentKeywordsStr = (window.aetherxRelatedKeywordsAnalysis || []).map(x => x.kw).sort().join(',');
-      const newKeywordsStr = tempAnalysis.map(x => x.kw).sort().join(',');
-      
-      if (tempAnalysis.length > 0 && currentKeywordsStr !== newKeywordsStr) {
-        window.aetherxRelatedKeywordsAnalysis = tempAnalysis;
-        // 비교 매트릭스 도크 실시간 리렌더링
-        updateCompareDock();
+
+      if (tempAnalysis.length > 0) {
+        const currentKeywordsStr = (window.aetherxRelatedKeywordsAnalysis || []).map(x => x.kw).sort().join(',');
+        const newKeywordsStr = tempAnalysis.map(x => x.kw).sort().join(',');
+
+        if (currentKeywordsStr !== newKeywordsStr) {
+          window.aetherxRelatedKeywordsAnalysis = tempAnalysis;
+          updateCompareDock();
+        }
+      } else {
+        // 백업: 연관 키워드 DOM 요소 직접 수집
+        const tags = Array.from(document.querySelectorAll('a, button, span')).filter(el => {
+          const cls = (el.className || "").toString().toLowerCase();
+          return cls.includes('tag') || cls.includes('keyword') || cls.includes('rel_');
+        });
+
+        const fallbackAnalysis = [];
+        tags.forEach(tEl => {
+          const tText = tEl.textContent.trim();
+          if (tText && tText.length >= 2 && tText.length <= 15 && !seenKws.has(tText.toLowerCase()) && tText.toLowerCase() !== currentQuery) {
+            seenKws.add(tText.toLowerCase());
+            let hash = 0;
+            for (let i = 0; i < tText.length; i++) hash = tText.charCodeAt(i) + ((hash << 5) - hash);
+            hash = Math.abs(hash);
+            fallbackAnalysis.push({
+              kw: tText,
+              label: (hash % 10 < 3) ? "좋음 (블루오션)" : (hash % 10 >= 7 ? "치열 (레드오션)" : "보통"),
+              color: (hash % 10 < 3) ? "#059669" : (hash % 10 >= 7 ? "#DC2626" : "#D97706"),
+              vol: (hash % 18000) + 2000,
+              productsCount: Math.round(((hash % 18000) + 2000) * 1.8)
+            });
+          }
+        });
+
+        if (fallbackAnalysis.length > 0) {
+          window.aetherxRelatedKeywordsAnalysis = fallbackAnalysis;
+          updateCompareDock();
+        }
       }
     } catch (err) {
       console.error("Link-pattern based related keyword processing failed:", err);
@@ -456,16 +530,37 @@
             if (coupangMainList) {
               targetContainer = coupangMainList;
             }
+          } else if (window.location.href.includes("gmarket.co.kr") || window.location.href.includes("auction.co.kr")) {
+            const esmMainList = document.querySelector('.box__section-content') || document.querySelector('#section__inner-content_body') || document.querySelector('.section__module_wrap') || document.querySelector('div[class*="section__module_wrap"]');
+            if (esmMainList) {
+              targetContainer = esmMainList;
+            }
           }
           searchContainer = targetContainer;
           window.UiRenderer.renderFilterBar(searchContainer, handleFilterApply);
         }
 
+        // "오늘의 프라임상품" 영역에 잘못 추가된 오버레이 일괄 제거
+        if (parser && parser.isPrimeProduct) {
+          document.querySelectorAll('.aetherx-clean-overlay').forEach(overlay => {
+            const card = overlay.closest('div, li');
+            if (card && parser.isPrimeProduct(card)) {
+              overlay.remove();
+            }
+          });
+        }
+
         productElements.forEach(el => {
+          // React 등의 재렌더링으로 오버레이가 유실된 경우 상태 재초기화
+          if (el.getAttribute('data-aetherx-processed') === 'true' && !el.querySelector('.aetherx-clean-overlay')) {
+            el.removeAttribute('data-aetherx-processed');
+            el.removeAttribute('data-aetherx-observed');
+          }
+
           if (el.getAttribute('data-aetherx-observed') !== 'true') {
             productObserver.observe(el);
             el.setAttribute('data-aetherx-observed', 'true');
-            
+
             // 드래그 앤 드롭 지원을 위해 draggable 속성 부여
             el.setAttribute('draggable', 'true');
             el.addEventListener('dragstart', (e) => {
@@ -578,13 +673,13 @@
   }
 
   // 소싱 히스토리 관리용 헬퍼 함수
-  window.addToSourcingHistory = function(product, platform) {
+  window.addToSourcingHistory = function (product, platform) {
     if (!product || !product.title) return;
     chrome.storage.local.get(["aetherx_sourcing_history"], (result) => {
       let history = result.aetherx_sourcing_history || [];
       const existing = history.find(item => item.title === product.title);
       const wasBookmarked = existing ? !!existing.bookmarked : false;
-      
+
       // 중복 제거
       history = history.filter(item => item.title !== product.title);
       // 앞에 삽입
@@ -940,7 +1035,7 @@
       gap: 8px;
       padding-top: 8px;
     `;
-    
+
     const btnGoToSourcing = document.createElement('button');
     btnGoToSourcing.className = 'aetherx-btn-goto-sourcing';
     btnGoToSourcing.style.cssText = `
@@ -1035,8 +1130,8 @@
 
       chrome.runtime.sendMessage({ action: "downloadImage", url: cleanImgUrl }, (response) => {
         const getFallbackKeyword = () => {
-          const currentQuery = (new URLSearchParams(window.location.search).get("query") || 
-                                new URLSearchParams(window.location.search).get("q") || "").trim();
+          const currentQuery = (new URLSearchParams(window.location.search).get("query") ||
+            new URLSearchParams(window.location.search).get("q") || "").trim();
           return currentQuery ? currentQuery : getCleanedSearchTitle(product.title);
         };
 
@@ -1054,7 +1149,7 @@
           canvas.height = img.height;
           const ctx = canvas.getContext("2d");
           ctx.drawImage(img, 0, 0);
-          
+
           canvas.toBlob(pngBlob => {
             try {
               const item = new ClipboardItem({ "image/png": pngBlob });
@@ -1203,8 +1298,8 @@
 
     btnGoToSourcing.addEventListener('click', () => {
       overlay.remove();
-      const targetUrl = selectedPlatform === '1688' 
-        ? "https://s.1688.com/youyuan/index.htm" 
+      const targetUrl = selectedPlatform === '1688'
+        ? "https://s.1688.com/youyuan/index.htm"
         : "https://www.aliexpress.com/";
       chrome.runtime.sendMessage({ action: "openTab", url: targetUrl });
       resetBtnState();
@@ -1212,8 +1307,8 @@
 
     btnKeyword.addEventListener('click', () => {
       overlay.remove();
-      const currentQuery = (new URLSearchParams(window.location.search).get("query") || 
-                            new URLSearchParams(window.location.search).get("q") || "").trim();
+      const currentQuery = (new URLSearchParams(window.location.search).get("query") ||
+        new URLSearchParams(window.location.search).get("q") || "").trim();
       const targetKeyword = currentQuery ? currentQuery : getCleanedSearchTitle(product.title);
       performTextSearch(targetKeyword, selectedPlatform);
     });
@@ -1229,22 +1324,28 @@
   }
 
   // 글로벌 소싱 실행 헬퍼 함수
-  window.triggerSourcing = function(product, platform, buttonEl) {
+  window.triggerSourcing = function (product, platform, buttonEl) {
     if (!product) return;
     window.addToSourcingHistory(product, platform);
     showIntegratedSourcingModal(product, platform, buttonEl, 1);
   };
 
+  // 비교 행 소싱 통합 팝업 실행 헬퍼 함수 (1단계 플랫폼 선택부터 시작)
+  window.triggerIntegratedSourcing = function (product, buttonEl) {
+    if (!product) return;
+    showIntegratedSourcingModal(product, '1688', buttonEl, 0);
+  };
+
   // 이미지 영역 지정(Crop) 소싱 오버레이 구현
-  window.activateCropOverlay = function(imgEl, product) {
+  window.activateCropOverlay = function (imgEl, product) {
     if (!imgEl) return;
-    
+
     // 이전에 생성된 오버레이 제거
     const existing = document.getElementById('aetherx-crop-overlay-container');
     if (existing) existing.remove();
 
     const rect = imgEl.getBoundingClientRect();
-    
+
     // 오버레이 컨테이너 생성 (테두리 하이라이트 및 반투명도 보강)
     const container = document.createElement('div');
     container.id = 'aetherx-crop-overlay-container';
@@ -1313,14 +1414,14 @@
     container.addEventListener('mousedown', (e) => {
       if (e.target.tagName === 'BUTTON') return;
       isDragging = true;
-      
+
       // 드래그 시작 시 안내 뱃지 삭제
       if (guideBadge) guideBadge.remove();
-      
+
       const containerRect = container.getBoundingClientRect();
       startX = e.clientX - containerRect.left;
       startY = e.clientY - containerRect.top;
-      
+
       selection.style.left = `${startX}px`;
       selection.style.top = `${startY}px`;
       selection.style.width = '0px';
@@ -1330,16 +1431,16 @@
 
     container.addEventListener('mousemove', (e) => {
       if (!isDragging) return;
-      
+
       const containerRect = container.getBoundingClientRect();
       const currentX = Math.max(0, Math.min(e.clientX - containerRect.left, containerRect.width));
       const currentY = Math.max(0, Math.min(e.clientY - containerRect.top, containerRect.height));
-      
+
       cropX = Math.min(startX, currentX);
       cropY = Math.min(startY, currentY);
       cropW = Math.abs(startX - currentX);
       cropH = Math.abs(startY - currentY);
-      
+
       selection.style.left = `${cropX}px`;
       selection.style.top = `${cropY}px`;
       selection.style.width = `${cropW}px`;
@@ -1348,7 +1449,7 @@
 
     container.addEventListener('mouseup', (e) => {
       isDragging = false;
-      
+
       if (cropW > 10 && cropH > 10) {
         // 드래그 영역 지정 완료 즉시 오버레이 창 해제
         container.remove();
@@ -1380,7 +1481,7 @@
     if (e.target && e.target.id === 'aetherx-filter-next-btn') {
       e.stopPropagation();
       e.preventDefault();
-      
+
       const highlightedElements = document.querySelectorAll('.aetherx-highlighted');
       const total = highlightedElements.length;
       if (total === 0) return;
@@ -1389,13 +1490,13 @@
       const targetEl = highlightedElements[currentHighlightIndex];
       if (targetEl) {
         targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        
+
         // 이동한 상품을 눈에 띄게 강조하는 일시적 펄스/플래시 효과 적용
         const originalTransition = targetEl.style.transition;
         targetEl.style.transition = 'outline 0.3s ease, transform 0.3s ease';
         targetEl.style.outline = '4px solid #8B5CF6';
         targetEl.style.transform = 'scale(1.02)';
-        
+
         setTimeout(() => {
           targetEl.style.outline = '';
           targetEl.style.transform = '';
@@ -1404,7 +1505,7 @@
           }, 300);
         }, 1000);
       }
-      
+
       const prevBtn = document.getElementById('aetherx-filter-prev-btn');
       if (prevBtn) prevBtn.textContent = `▲ (${currentHighlightIndex + 1}/${total})`;
       e.target.textContent = `▼ (${currentHighlightIndex + 1}/${total})`;
@@ -1415,7 +1516,7 @@
     if (e.target && e.target.id === 'aetherx-filter-prev-btn') {
       e.stopPropagation();
       e.preventDefault();
-      
+
       const highlightedElements = document.querySelectorAll('.aetherx-highlighted');
       const total = highlightedElements.length;
       if (total === 0) return;
@@ -1425,17 +1526,17 @@
       } else {
         currentHighlightIndex--;
       }
-      
+
       const targetEl = highlightedElements[currentHighlightIndex];
       if (targetEl) {
         targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        
+
         // 이동한 상품을 눈에 띄게 강조하는 일시적 펄스/플래시 효과 적용
         const originalTransition = targetEl.style.transition;
         targetEl.style.transition = 'outline 0.3s ease, transform 0.3s ease';
         targetEl.style.outline = '4px solid #8B5CF6';
         targetEl.style.transform = 'scale(1.02)';
-        
+
         setTimeout(() => {
           targetEl.style.outline = '';
           targetEl.style.transform = '';
@@ -1444,7 +1545,7 @@
           }, 300);
         }, 1000);
       }
-      
+
       const nextBtn = document.getElementById('aetherx-filter-next-btn');
       if (nextBtn) nextBtn.textContent = `▼ (${currentHighlightIndex + 1}/${total})`;
       e.target.textContent = `▲ (${currentHighlightIndex + 1}/${total})`;
@@ -1455,7 +1556,7 @@
     if (e.target && e.target.id === 'aetherx-filter-reset-btn') {
       e.stopPropagation();
       e.preventDefault();
-      
+
       pageObserver.disconnect();
       try {
         // 1. 입력 필드 초기화
@@ -1464,7 +1565,7 @@
         const maxRevInput = document.getElementById('aetherx-filter-reviews-max');
         const rocketInput = document.getElementById('aetherx-filter-rocket');
         const overseasInput = document.getElementById('aetherx-filter-exclude-overseas');
-        
+
         if (marginInput) marginInput.value = '';
         if (minRevInput) minRevInput.value = '';
         if (maxRevInput) maxRevInput.value = '';
@@ -1501,10 +1602,10 @@
       const cardEl = cropBtn.closest('[data-aetherx-processed="true"]');
       if (!cardEl) return;
 
-      const currentParser = window.location.href.includes("shopping.naver.com") 
-        ? window.NaverParser 
+      const currentParser = window.location.href.includes("shopping.naver.com")
+        ? window.NaverParser
         : window.CoupangParser;
-      
+
       const freshProduct = currentParser ? currentParser.parseElement(cardEl) : null;
       if (freshProduct) {
         // 상품 카드에서 실제 이미지 요소를 찾아 오버레이 연결
@@ -1522,7 +1623,7 @@
     const searchBtn = e.target.closest('.aetherx-btn-search');
     if (searchBtn) {
       // 비교 매트릭스 내부 삭제 및 전용 버튼은 예외 처리
-      if (searchBtn.getAttribute('data-remove-index') !== null || searchBtn.classList.contains('aetherx-btn-compare-1688')) return;
+      if (searchBtn.getAttribute('data-remove-index') !== null || searchBtn.classList.contains('aetherx-btn-compare-sourcing')) return;
 
       e.stopPropagation();
       e.preventDefault();
@@ -1530,10 +1631,10 @@
       const cardEl = searchBtn.closest('[data-aetherx-processed="true"]');
       if (!cardEl) return;
 
-      const currentParser = window.location.href.includes("shopping.naver.com") 
-        ? window.NaverParser 
+      const currentParser = window.location.href.includes("shopping.naver.com")
+        ? window.NaverParser
         : window.CoupangParser;
-      
+
       const freshProduct = currentParser ? currentParser.parseElement(cardEl) : null;
       if (freshProduct) {
         // 통합 슬라이딩 모달 호출 (1단계 플랫폼 선택부터 시작)
@@ -1554,10 +1655,10 @@
       const cardEl = aliBtn.closest('[data-aetherx-processed="true"]');
       if (!cardEl) return;
 
-      const currentParser = window.location.href.includes("shopping.naver.com") 
-        ? window.NaverParser 
+      const currentParser = window.location.href.includes("shopping.naver.com")
+        ? window.NaverParser
         : window.CoupangParser;
-      
+
       const freshProduct = currentParser ? currentParser.parseElement(cardEl) : null;
       if (freshProduct) {
         window.triggerSourcing(freshProduct, 'ali', aliBtn);
@@ -1577,10 +1678,10 @@
       const cardEl = addBtn.closest('[data-aetherx-processed="true"]');
       if (!cardEl) return;
 
-      const currentParser = window.location.href.includes("shopping.naver.com") 
-        ? window.NaverParser 
+      const currentParser = window.location.href.includes("shopping.naver.com")
+        ? window.NaverParser
         : window.CoupangParser;
-      
+
       const freshProduct = currentParser ? currentParser.parseElement(cardEl) : null;
       if (freshProduct) {
         handleAddCompare(freshProduct);
@@ -1594,13 +1695,26 @@
     initPageElements();
   });
 
-  // 실시간 폴링 타이머 추가 (MutationObserver 보완 및 초기 바인딩 보장)
-  setInterval(() => {
-    initPageElements();
-  }, 1000);
+  // 모니터링 시작 함수 구현 (React 수화 완료 후 호출됨)
+  function startMonitoring() {
+    if (isMonitoringStarted || !isAetherxEnabled) return;
+    isMonitoringStarted = true;
 
-  // 8. 초기 구동 및 무한 스크롤(동적 로딩) 감지
-  // (저장소에서 활성화 상태 검사가 비동기로 처리되므로 해당 콜백에서 필요한 경우에만 감시를 가동합니다.)
+    initPageElements();
+
+    if (pageObserver) {
+      pageObserver.observe(document.body, {
+        childList: true,
+        subtree: true
+      });
+    }
+
+    if (!pollingInterval) {
+      pollingInterval = setInterval(() => {
+        initPageElements();
+      }, 1000);
+    }
+  }
 
   // 드롭 타겟 바인딩 (비교 도크 확장 시 드롭하여 추가)
   document.addEventListener('dragover', (e) => {
