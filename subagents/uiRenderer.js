@@ -1041,9 +1041,10 @@ window.UiRenderer = {
     `;
 
     dock.innerHTML = `
-      <div class="aetherx-dock-header">
-        <span class="aetherx-dock-title">셀러보드 X 분석 패널</span>
-        <button class="aetherx-dock-close" id="aetherx-dock-close-btn">✕ 접기</button>
+      <div class="aetherx-dock-header" style="display: flex !important; align-items: center !important; gap: 8px !important;">
+        <span class="aetherx-dock-title" style="margin-right: auto !important;">셀러보드 X 분석 패널</span>
+        <a href="https://sellerboard.vercel.app" target="_blank" class="aetherx-dock-link-btn" style="background-color: #2563EB !important; color: white !important; font-size: 10px !important; padding: 3px 8px !important; border-radius: 4px !important; text-decoration: none !important; font-weight: 600 !important; cursor: pointer !important; display: inline-flex !important; align-items: center !important; height: fit-content !important; line-height: 1.2 !important;">셀러보드 바로가기</a>
+        <button class="aetherx-dock-close" id="aetherx-dock-close-btn" style="margin-left: 0 !important;">✕ 접기</button>
       </div>
       <div class="aetherx-dock-body" style="display: flex !important; flex-direction: column !important; gap: 14px !important; padding: 14px !important; height: 460px !important; box-sizing: border-box !important; overflow: hidden !important;">
         ${relatedKeywordsCardHtml}
