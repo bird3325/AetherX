@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "셀러보드 X",
+  "name": "셀러보드X - 셀러를 위한 분석 보드",
   "version": "1.0.0",
   "description": "중급 셀러를 위한 초경량 실시간 분석 & 원클릭 소싱 인텔리전스",
   "permissions": [
@@ -15,9 +15,21 @@
     "https://*.gmarket.co.kr/*",
     "https://*.auction.co.kr/*"
   ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "24": "icons/icon24.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
   "action": {
-    "default_title": "셀러보드 X",
-    "default_popup": "popup.html"
+    "default_title": "셀러보드X - 셀러를 위한 분석 보드",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "24": "icons/icon24.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
   },
   "background": {
     "service_worker": "background.js"
