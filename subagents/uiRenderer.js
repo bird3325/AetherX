@@ -903,7 +903,11 @@ window.UiRenderer = {
     };
 
     const rawAnalysis = window.aetherxRelatedKeywordsAnalysis || [];
-    const relatedAnalysis = [...rawAnalysis].sort((a, b) => {
+    const uiExcludeSet = new Set(['다음', '이전', '더보기', '접기', '펼치기', '전체', '페이지', '닫기', '목록', '메뉴', '확인', '취소', '맨처음', '맨끝', '전체보기', '페이지이동']);
+    const relatedAnalysis = rawAnalysis.map(item => ({
+      ...item,
+      kw: (item.kw || '').replace(/#/g, '').trim()
+    })).filter(item => item.kw.length > 0 && !uiExcludeSet.has(item.kw)).sort((a, b) => {
       if (sortState.key === 'kw') {
         const res = (a.kw || '').localeCompare(b.kw || '');
         return sortState.dir === 'asc' ? res : -res;

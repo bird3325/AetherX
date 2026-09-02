@@ -360,154 +360,149 @@
       const currentQuery = (urlParams.get("query") ||
         urlParams.get("q") ||
         urlParams.get("k") ||
-        urlParams.get("keyword") || "").trim().toLowerCase();
+        urlParams.get("keyword") || "").trim().toLowerCase().replace(/#/g, '');
 
       const tempAnalysis = [];
       const seenKws = new Set();
 
-      // 1. 연관검색어 전용 DOM 컨테이너 선택자
+      // 1. 쇼핑몰 플랫폼별 연관검색어 전용 DOM 컨테이너 선택자
       const relSelectors = [
-        'div[class*="related"] a',
-        'div[class*="rel_"] a',
-        'ul[class*="rel_"] a',
-        'div[class*="tag"] a',
-        'ul[class*="tag"] a',
-        'div[class*="keyword"] a',
-        '.search-related-keyword a',
-        '.box__tag-list a',
-        '.box__section-tag a',
-        '.box__tag_list a',
-        '#rel_search a',
-        'div[class*="search_rel"] a'
+        // 네이버 쇼핑 / 네이버 검색
+        'div[class*="relatedTag"] a, div[class*="relatedTag"] button, div[class*="relatedTag"] span',
+        'ul[class*="relatedTag"] a, ul[class*="relatedTag"] button, ul[class*="relatedTag"] span',
+        'div[class*="relationTag"] a, div[class*="relationTag"] button, div[class*="relationTag"] span',
+        'div[class*="relation_tag"] a, div[class*="relation_tag"] button, div[class*="relation_tag"] span',
+        'ul[class*="relation_tag"] a, ul[class*="relation_tag"] button, ul[class*="relation_tag"] span',
+        'div[class*="related_keywords"] a, div[class*="related_keywords"] button',
+        'ul[class*="related_keywords"] a, ul[class*="related_keywords"] button',
+        'div[class*="related_srch"] a, div[class*="related_srch"] button',
+        'ul[class*="list_related"] a, ul[class*="list_related"] button',
+        // 쿠팡
+        '.search-related-keyword a, .search-related-keyword button, .search-related-keyword span',
+        'div[class*="search-related"] a, div[class*="search-related"] button',
+        'ul[class*="search-related"] a, ul[class*="search-related"] button',
+        'div[class*="related-keyword"] a, div[class*="related-keyword"] button',
+        'ul[class*="related-keyword"] a, ul[class*="related-keyword"] button',
+        // 지마켓 / 옥션
+        '.box__tag-list a, .box__tag-list button, .box__tag-list span',
+        '.box__section-tag a, .box__section-tag button, .box__section-tag span',
+        '.box__tag_list a, .box__tag_list button, .box__tag_list span',
+        'div[class*="box__tag"] a, div[class*="box__tag"] button',
+        'ul[class*="box__tag"] a, ul[class*="box__tag"] button',
+        'div[class*="tag-list"] a, div[class*="tag-list"] button',
+        '#rel_search a, #rel_search button',
+        'div[class*="search_rel"] a, div[class*="search_rel"] button',
+        'div[class*="rel_search"] a, div[class*="rel_search"] button',
+        'ul[class*="rel_search"] a, ul[class*="rel_search"] button',
+        'div[class*="rel_keywords"] a, div[class*="rel_keywords"] button',
+        // 알리익스프레스
+        'div[class*="related-keywords"] a, div[class*="related-keywords"] button',
+        'div[class*="related_search"] a, div[class*="related_search"] button',
+        'div[class*="relatedSearch"] a, div[class*="relatedSearch"] button',
+        'div[class*="relateKeywords"] a, div[class*="relateKeywords"] button',
+        '[class*="relation"] a, [class*="relation"] button',
+        '[class*="related"] a, [class*="related"] button'
       ];
 
-      const dedicatedEls = document.querySelectorAll(relSelectors.join(', '));
-      const allCandidateLinks = dedicatedEls.length > 0
-        ? Array.from(dedicatedEls)
-        : Array.from(document.querySelectorAll('a[href]'));
+      let dedicatedEls = document.querySelectorAll(relSelectors.join(', '));
+      let candidateEls = Array.from(dedicatedEls);
 
-      allCandidateLinks.forEach(link => {
+      // 전용 선택자로 찾지 못한 경우 검색 URL 파라미터를 가진 엘리먼트 중 상품 카드가 아닌 요소만 선별
+      if (candidateEls.length === 0) {
+        const searchLinks = document.querySelectorAll('a[href*="query="], a[href*="q="], a[href*="keyword="], a[href*="k="], a[href*="SearchText="]');
+        candidateEls = Array.from(searchLinks).filter(el => {
+          const isProductCard = !!el.closest('[class*="product"], [class*="Product"], [class*="item"], [class*="Item"], [class*="card"], [class*="Card"], [class*="goods"], [class*="Goods"], footer, header, nav');
+          return !isProductCard;
+        });
+      }
+
+      candidateEls.forEach(link => {
         const href = link.getAttribute('href') || "";
-        const text = link.textContent.trim().replace(/\s+/g, ' ');
+        let text = link.textContent.trim().replace(/\s+/g, ' ').replace(/#/g, '').trim();
         if (!text || text.length < 2 || text.length > 25) return;
 
-        // 검색 URL 인자 매칭 (네이버, 쿠팡, 알리, 지마켓, 옥션)
-        const isNaverSearch = href.includes('query=');
-        const isCoupangSearch = href.includes('search') && href.includes('q=');
-        const isAliSearch = href.includes('SearchText=');
-        const isEsmSearch = href.includes('keyword=') || (href.includes('k=') && (href.includes('gmarket') || href.includes('auction')));
-        const isDedicatedRelLink = !!link.closest(relSelectors.join(', '));
-
-        if (isNaverSearch || isCoupangSearch || isAliSearch || isEsmSearch || isDedicatedRelLink) {
-          let kw = text;
-          try {
-            let urlObj;
-            if (href.startsWith('http') || href.startsWith('//')) {
-              urlObj = new URL(href.startsWith('//') ? window.location.protocol + href : href);
-            } else if (href.startsWith('/')) {
-              urlObj = new URL(href, window.location.origin);
-            }
-
-            if (urlObj) {
-              kw = urlObj.searchParams.get('query') ||
-                urlObj.searchParams.get('q') ||
-                urlObj.searchParams.get('keyword') ||
-                urlObj.searchParams.get('k') ||
-                urlObj.searchParams.get('SearchText') || text;
-            }
-          } catch (e) {
-            kw = text;
+        let kw = text;
+        try {
+          let urlObj;
+          if (href.startsWith('http') || href.startsWith('//')) {
+            urlObj = new URL(href.startsWith('//') ? window.location.protocol + href : href);
+          } else if (href.startsWith('/')) {
+            urlObj = new URL(href, window.location.origin);
           }
 
-          kw = (kw || text).trim();
-
-          // 제외 키워드 필터링
-          if (!kw || kw.toLowerCase() === currentQuery || /^\d+$/.test(kw)) return;
-          if (text.includes('원') || text.includes('리뷰') || text.includes('배송') || text.includes('등록') || text.includes('인기') || text.includes('최근') || text.includes('더보기') || text.includes('접기')) return;
-
-          if (kw.length >= 2 && kw.length <= 20 && !seenKws.has(kw.toLowerCase())) {
-            seenKws.add(kw.toLowerCase());
-
-            let hash = 0;
-            for (let i = 0; i < kw.length; i++) {
-              hash = kw.charCodeAt(i) + ((hash << 5) - hash);
-            }
-            hash = Math.abs(hash);
-
-            let label = "보통";
-            let color = "#D97706";
-            let ratio = 2.2;
-            const mod = hash % 10;
-            if (mod < 3) {
-              label = "좋음 (블루오션)";
-              color = "#059669";
-              ratio = 0.8 + (hash % 5) * 0.1;
-            } else if (mod >= 7) {
-              label = "치열 (레드오션)";
-              color = "#DC2626";
-              ratio = 4.5 + (hash % 5) * 0.8;
-            } else {
-              ratio = 1.6 + (hash % 5) * 0.3;
-            }
-
-            const estimatedSearchVol = (hash % 18000) + 2000;
-            const productsCount = Math.round(estimatedSearchVol * ratio);
-
-            tempAnalysis.push({
-              kw: kw,
-              label: label,
-              color: color,
-              vol: estimatedSearchVol,
-              productsCount: productsCount
-            });
-
-            link.removeAttribute('title');
-            link.style.cursor = 'pointer';
-            link.setAttribute('data-aetherx-kw-processed', 'true');
+          if (urlObj) {
+            kw = urlObj.searchParams.get('query') ||
+              urlObj.searchParams.get('q') ||
+              urlObj.searchParams.get('keyword') ||
+              urlObj.searchParams.get('k') ||
+              urlObj.searchParams.get('SearchText') || text;
           }
+        } catch (e) {
+          kw = text;
+        }
+
+        try {
+          kw = decodeURIComponent(kw);
+        } catch (e) {}
+
+        // UI 버튼 및 네비게이션 전용 노이즈 키워드 목록 (완전 일치만 매칭하여 '원피스', '로켓배송' 등의 유효 키워드 오차단 방지)
+        const uiExcludeWords = new Set(['다음', '이전', '더보기', '접기', '펼치기', '전체', '페이지', '닫기', '목록', '메뉴', '확인', '취소', '맨처음', '맨끝', '전체보기', '페이지이동']);
+
+        // 제외 키워드 필터링
+        if (!kw || kw.toLowerCase() === currentQuery || /^\d+$/.test(kw)) return;
+        if (uiExcludeWords.has(kw) || uiExcludeWords.has(text)) return;
+
+        if (kw.length >= 2 && kw.length <= 20 && !seenKws.has(kw.toLowerCase())) {
+          seenKws.add(kw.toLowerCase());
+
+          let hash = 0;
+          for (let i = 0; i < kw.length; i++) {
+            hash = kw.charCodeAt(i) + ((hash << 5) - hash);
+          }
+          hash = Math.abs(hash);
+
+          let label = "보통";
+          let color = "#D97706";
+          let ratio = 2.2;
+          const mod = hash % 10;
+          if (mod < 3) {
+            label = "좋음 (블루오션)";
+            color = "#059669";
+            ratio = 0.8 + (hash % 5) * 0.1;
+          } else if (mod >= 7) {
+            label = "치열 (레드오션)";
+            color = "#DC2626";
+            ratio = 4.5 + (hash % 5) * 0.8;
+          } else {
+            ratio = 1.6 + (hash % 5) * 0.3;
+          }
+
+          const estimatedSearchVol = (hash % 18000) + 2000;
+          const productsCount = Math.round(estimatedSearchVol * ratio);
+
+          tempAnalysis.push({
+            kw: kw,
+            label: label,
+            color: color,
+            vol: estimatedSearchVol,
+            productsCount: productsCount
+          });
+
+          link.removeAttribute('title');
+          link.style.cursor = 'pointer';
+          link.setAttribute('data-aetherx-kw-processed', 'true');
         }
       });
 
-      if (tempAnalysis.length > 0) {
-        const currentKeywordsStr = (window.aetherxRelatedKeywordsAnalysis || []).map(x => x.kw).sort().join(',');
-        const newKeywordsStr = tempAnalysis.map(x => x.kw).sort().join(',');
+      const currentKeywordsStr = (window.aetherxRelatedKeywordsAnalysis || []).map(x => x.kw).sort().join(',');
+      const newKeywordsStr = tempAnalysis.map(x => x.kw).sort().join(',');
 
-        if (currentKeywordsStr !== newKeywordsStr) {
-          window.aetherxRelatedKeywordsAnalysis = tempAnalysis;
-          updateCompareDock();
-        }
-      } else {
-        // 백업: 연관 키워드 DOM 요소 직접 수집
-        const tags = Array.from(document.querySelectorAll('a, button, span')).filter(el => {
-          const cls = (el.className || "").toString().toLowerCase();
-          return cls.includes('tag') || cls.includes('keyword') || cls.includes('rel_');
-        });
-
-        const fallbackAnalysis = [];
-        tags.forEach(tEl => {
-          const tText = tEl.textContent.trim();
-          if (tText && tText.length >= 2 && tText.length <= 15 && !seenKws.has(tText.toLowerCase()) && tText.toLowerCase() !== currentQuery) {
-            seenKws.add(tText.toLowerCase());
-            let hash = 0;
-            for (let i = 0; i < tText.length; i++) hash = tText.charCodeAt(i) + ((hash << 5) - hash);
-            hash = Math.abs(hash);
-            fallbackAnalysis.push({
-              kw: tText,
-              label: (hash % 10 < 3) ? "좋음 (블루오션)" : (hash % 10 >= 7 ? "치열 (레드오션)" : "보통"),
-              color: (hash % 10 < 3) ? "#059669" : (hash % 10 >= 7 ? "#DC2626" : "#D97706"),
-              vol: (hash % 18000) + 2000,
-              productsCount: Math.round(((hash % 18000) + 2000) * 1.8)
-            });
-          }
-        });
-
-        if (fallbackAnalysis.length > 0) {
-          window.aetherxRelatedKeywordsAnalysis = fallbackAnalysis;
-          updateCompareDock();
-        }
+      if (currentKeywordsStr !== newKeywordsStr) {
+        window.aetherxRelatedKeywordsAnalysis = tempAnalysis;
+        updateCompareDock();
       }
     } catch (err) {
-      console.error("Link-pattern based related keyword processing failed:", err);
+      console.error("Strict related keyword processing failed:", err);
     }
   }
 
