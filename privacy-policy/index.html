@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>개인정보처리방침 - 셀러보드X (AetherX)</title>
+  <meta name="description" content="셀러보드X(AetherX) 크롬 확장프로그램의 개인정보처리방침 안내입니다.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-color: #0b0f19;
+      --card-bg: rgba(23, 31, 51, 0.7);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --accent-color: #6366f1;
+      --accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+      --accent-light: rgba(99, 102, 241, 0.15);
+      --code-bg: #111827;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      line-height: 1.7;
+      padding: 40px 20px;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+    }
+
+    .container {
+      max-width: 860px;
+      width: 100%;
+    }
+
+    header {
+      margin-bottom: 40px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .logo-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--accent-light);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      padding: 6px 14px;
+      border-radius: 20px;
+      color: #818cf8;
+      font-size: 0.875rem;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      font-size: 2.25rem;
+      font-weight: 700;
+      background: linear-gradient(to right, #ffffff, #9ca3af);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+    }
+
+    .last-updated {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    .content-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 36px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    }
+
+    section {
+      margin-bottom: 32px;
+    }
+
+    section:last-child {
+      margin-bottom: 0;
+    }
+
+    h2 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #ffffff;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    h2::before {
+      content: '';
+      display: inline-block;
+      width: 4px;
+      height: 18px;
+      background: var(--accent-gradient);
+      border-radius: 2px;
+    }
+
+    p {
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      font-size: 0.975rem;
+    }
+
+    ul {
+      list-style-type: none;
+      padding-left: 0;
+      margin-bottom: 16px;
+    }
+
+    li {
+      position: relative;
+      padding-left: 20px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      font-size: 0.95rem;
+    }
+
+    li::before {
+      content: '•';
+      position: absolute;
+      left: 4px;
+      color: #818cf8;
+      font-weight: bold;
+    }
+
+    .highlight-box {
+      background: rgba(99, 102, 241, 0.08);
+      border-left: 3px solid var(--accent-color);
+      padding: 16px 20px;
+      border-radius: 0 8px 8px 0;
+      margin: 16px 0;
+    }
+
+    .highlight-box p {
+      color: #d1d5db;
+      margin-bottom: 0;
+    }
+
+    footer {
+      margin-top: 40px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      border-top: 1px solid var(--card-border);
+      padding-top: 24px;
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 20px 12px;
+      }
+      .content-card {
+        padding: 20px;
+      }
+      h1 {
+        font-size: 1.75rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo-badge">
+        <span>⚡</span> 셀러보드X (AetherX)
+      </div>
+      <h1>개인정보처리방침 (Privacy Policy)</h1>
+      <p class="last-updated">최종 수정일: 2026년 9월 2일</p>
+    </header>
+
+    <main class="content-card">
+      <section>
+        <h2>1. 개요</h2>
+        <p>본 개인정보처리방침은 <strong>셀러보드X (AetherX)</strong> (이하 "확장프로그램")가 이용자의 개인정보 및 데이터를 다루는 방식을 설명합니다.</p>
+        <div class="highlight-box">
+          <p>🔒 <strong>핵심 원칙 (Local-First & Privacy First):</strong><br>
+          셀러보드X는 이용자의 개인식별정보(PII)를 수집, 저장, 전송하거나 외부 서버로 공유하지 않습니다. 모든 분석 및 사용자 설정값 처리는 브라우저 내부(로컬 환경)에서만 독립적으로 실행됩니다.</p>
+        </div>
+      </section>
+
+      <section>
+        <h2>2. 수집 및 처리하는 데이터</h2>
+        <p>확장프로그램은 어떠한 형태의 개인정보도 수집 및 외부 서버로 전송하지 않습니다.</p>
+        <ul>
+          <li><strong>수집하지 않는 정보:</strong> 성명, 이메일, 전화번호, IP 주소, 브라우징 방문 기록, 개인 식별자 등</li>
+          <li><strong>로컬 저장 데이터 (chrome.storage.local):</strong>
+            <ul>
+              <li>사용자가 직접 설정한 마진 계산 관련 옵션 (기본 마진율, 커스텀 수수료 설정값)</li>
+              <li>화면에서 선택한 빠른 상품 비교 목록 (Quick Compare 데이터)</li>
+              <li>데이터 로딩 속도 향상을 위한 브라우저 내 임시 캐시</li>
+            </ul>
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>3. 브라우저 권한 사용 목적</h2>
+        <p>확장프로그램은 서비스 제공을 위해 최소한의 권한만을 요구하며 목적 외 사용을 하지 않습니다.</p>
+        <ul>
+          <li><strong>Storage (`chrome.storage.local`):</strong> 사용자 설정값 및 임시 비교 목록 데이터를 이용자의 브라우저 내에 안전하게 보관하기 위해 사용합니다.</li>
+          <li><strong>ClipboardWrite (`clipboardWrite`):</strong> 사용자가 정밀 마진 계산 결과, 원가 데이터 및 핵심 키워드를 복사하여 외부 문서(Excel 등)에 붙여넣을 수 있도록 편리한 원클릭 복사 기능을 지원하기 위해 사용합니다.</li>
+          <li><strong>Host Permissions (호스트 권한):</strong> 네이버 쇼핑, 쿠팡, G마켓, 옥션, 1688, 알리익스프레스 등의 공개 상품 페이지 DOM을 파싱하여 실시간 오버레이 분석 지표(판매량 추정, 마진율 등)를 화면에 표시하기 위해서만 사용됩니다.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>4. 데이터 제3자 제공 및 매매 금지</h2>
+        <p>셀러보드X는 수집하는 개인 데이터가 없으므로, 이용자의 데이터를 제3자에게 판매, 대여, 교환, 전송하거나 마케팅 목적으로 활용하지 않습니다.</p>
+      </section>
+
+      <section>
+        <h2>5. 쿠키 및 추적 기술</h2>
+        <p>본 확장프로그램은 이용자를 추적하기 위한 쿠키(Cookies), 웹 베콘(Web Beacons) 또는 제3자 타겟팅 분석 스크립트를 사용하지 않습니다.</p>
+      </section>
+
+      <section>
+        <h2>6. 문의 사항 및 연락처</h2>
+        <p>개인정보처리방침 또는 확장프로그램 이용과 관련된 문의 사항이 있으신 경우 아래 연락처로 문의해 주시기 바랍니다.</p>
+        <ul>
+          <li><strong>이메일:</strong> support@aetherx-sellerboard.com</li>
+          <li><strong>제품명:</strong> 셀러보드X (AetherX)</li>
+        </ul>
+      </section>
+    </main>
+
+    <footer>
+      <p>&copy; 2026 AetherX. All rights reserved.</p>
+    </footer>
+  </div>
+</body>
+</html>
